@@ -41,6 +41,7 @@ MODBUS_SLEEP=1
 PLC_CONDENSER = 0x05
 PLC_CONDENSER_WATER_VALVE = 0X09
 
+AUTOMATION = False
 
 class HMIWindow(Gtk.Window):
     
@@ -52,13 +53,15 @@ class HMIWindow(Gtk.Window):
     def resetLabels(self):
         self.condenser_plc_online_value.set_markup("<span weight='bold' foreground='red'>OFF</span>")
         #self.condenser_plc_operational_value.set_markup("<span weight='bold' foreground='black'>N/A</span>")
+        self.condenser_plc_automation_value.set_markup("<span weight='bold' foreground='red'>OFF</span>")
         self.condenser_plc_waterlevel_value.set_markup("<span weight='bold' foreground='black'>N/A</span>")
         self.condenser_plc_valve_value.set_markup("<span weight='bold' foreground='red'>CLOSED</span>")
         self.condenser_plc_water_valve_value.set_markup("<span weight='bold' foreground='red'>CLOSED</span>")
+        self.automation.set_markup("FALSE")
     
     def __init__(self):
         # Window title
-        Gtk.Window.__init__(self, title="Generic PLC")
+        Gtk.Window.__init__(self, title="Condenser PLC")
         self.set_border_width(100)
         
         #Create modbus connection
@@ -83,6 +86,14 @@ class HMIWindow(Gtk.Window):
 
         #condenser_plc_operational_label = Gtk.Label("Operational: ")
         #condenser_plc_operational_value = Gtk.Label()
+        condenser_plc_automation_label = Gtk.Label("Automation: ") 
+        condenser_plc_automation_value = Gtk.Label()
+
+        condenser_plc_automation_on_button = Gtk.Button("ON")
+        condenser_plc_automation_off_button = Gtk.Button("OFF")
+
+        condenser_plc_automation_on_button.connect("clicked", self.setAutomation, 1)
+        condenser_plc_automation_off_button.connect("clicked", self.setAutomation, 0)
 
         condenser_plc_waterlevel_label = Gtk.Label("Water Level: ")
         condenser_plc_waterlevel_value = Gtk.Label()
@@ -114,6 +125,12 @@ class HMIWindow(Gtk.Window):
         #grid.attach(condenser_plc_operational_value, 5, elementIndex, 1, 1)
         #elementIndex += 1
 
+        grid.attach(condenser_plc_automation_label, 4, elementIndex, 1, 1)
+        grid.attach(condenser_plc_automation_value, 5, elementIndex, 1, 1)
+        grid.attach(condenser_plc_automation_on_button, 6, elementIndex, 1, 1)
+        grid.attach(condenser_plc_automation_off_button, 7, elementIndex, 1, 1)
+        elementIndex += 1
+
         grid.attach(condenser_plc_waterlevel_label, 4, elementIndex, 1, 1)
         grid.attach(condenser_plc_waterlevel_value, 5, elementIndex, 1, 1)
         elementIndex += 1
@@ -130,13 +147,16 @@ class HMIWindow(Gtk.Window):
         grid.attach(condenser_plc_water_valve_closed_button, 7, elementIndex, 1, 1)
         elementIndex += 1
 
+        automation = Gtk.Label() 
 
         # Attach Value Labels
         self.condenser_plc_online_value = condenser_plc_online_value
         #self.condenser_plc_operational_value = condenser_plc_operational_value
+        self.condenser_plc_automation_value = condenser_plc_automation_value
         self.condenser_plc_waterlevel_value = condenser_plc_waterlevel_value
         self.condenser_plc_valve_value = condenser_plc_valve_value
         self.condenser_plc_water_valve_value = condenser_plc_water_valve_value
+        self.automation = automation
 
         
         # Set default label values
@@ -155,10 +175,21 @@ class HMIWindow(Gtk.Window):
             self.modbusClient.write_register(PLC_CONDENSER_WATER_VALVE, data)
         except:
             pass
+
+    def setAutomation(self, widget, data=None):
+        global AUTOMATION
+        try:
+            if data == 0:
+                AUTOMATION = False
+            elif data == 1:
+                AUTOMATION = True
+        except:
+            pass
         
     def update_status(self):
 
         try:
+            global AUTOMATION
             # Store the registers of the PLC in "rr"
             rr = self.modbusClient.read_holding_registers(1,16)
             regs = []
@@ -175,6 +206,12 @@ class HMIWindow(Gtk.Window):
             
             self.condenser_plc_online_value.set_markup("<span weight='bold' foreground='green'>ON</span>")
             
+
+            if AUTOMATION:
+                self.condenser_plc_automation_value.set_markup("<span weight='bold' foreground='green'>ON</span>")
+            else:
+                self.condenser_plc_automation_value.set_markup("<span weight='bold' foreground='red'>OFF</span>")
+
             # If the feed pump "0x01" is set to 1, then the pump is running
             if regs[4] == 1:
                 #self.condenser_plc_operational_value.set_markup("<span weight='bold' foreground='green'>ON</span>")
@@ -185,18 +222,33 @@ class HMIWindow(Gtk.Window):
 
             if ( (regs[5] == 0) and (regs[6] == 0) and (regs[7] == 0) ):
                 self.condenser_plc_waterlevel_value.set_markup("<span weight='bold' foreground='red'>EMPTY</span>")
+                if AUTOMATION:
+                    try:
+                        self.modbusClient.write_register(PLC_CONDENSER_WATER_VALVE, 1)
+                    except:
+                        pass
             if regs[5] == 1:
                 self.condenser_plc_waterlevel_value.set_markup("<span weight='bold' foreground='orange'>LOW</span>")
+                if AUTOMATION:
+                    try:
+                        self.modbusClient.write_register(PLC_CONDENSER_WATER_VALVE, 1)
+                    except:
+                        pass
             if regs[6] == 1:
                 self.condenser_plc_waterlevel_value.set_markup("<span weight='bold' foreground='gold'>MIN</span>")
             if regs[7] == 1:
                 self.condenser_plc_waterlevel_value.set_markup("<span weight='bold' foreground='green'>MAX</span>")
+                if AUTOMATION:
+                    try:
+                        self.modbusClient.write_register(PLC_CONDENSER_WATER_VALVE, 0)
+                    except:
+                        pass
             if regs[8] == 1:
                 self.condenser_plc_water_valve_value.set_markup("<span weight='bold' foreground='green'>OPEN</span>")
             elif regs[8] == 0:
                 self.condenser_plc_water_valve_value.set_markup("<span weight='bold' foreground='red'>CLOSED</span>")
-            
-             
+
+
 
         except ConnectionException:
             if not self.modbusClient.connect():

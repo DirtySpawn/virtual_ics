@@ -40,6 +40,7 @@ args = parser.parse_args()
 MODBUS_SLEEP=1
 PLC_FUEL = 0x01
 
+AUTOMATION = False  
 
 class HMIWindow(Gtk.Window):
     
@@ -50,13 +51,13 @@ class HMIWindow(Gtk.Window):
     # Default values for the HMI labels
     def resetLabels(self):
         self.fuel_plc_online_value.set_markup("<span weight='bold' foreground='red'>OFF</span>")
-        self.fuel_plc_operational_value.set_markup("<span weight='bold' foreground='black'>N/A</span>")
+        self.fuel_plc_valve_value.set_markup("<span weight='bold' foreground='red'>OFF</span>")
         self.fuel_plc_rate_value.set_markup("<span weight='bold' foreground='black'>N/A</span>")
-        
+        self.fuel_plc_automation_value.set_markup("<span weight='bold' foreground='red'>OFF</span>")
         
     def __init__(self):
         # Window title
-        Gtk.Window.__init__(self, title="Generic PLC")
+        Gtk.Window.__init__(self, title="Fuel PLC")
         self.set_border_width(100)
         
         #Create modbus connection
@@ -79,17 +80,26 @@ class HMIWindow(Gtk.Window):
         fuel_plc_online_label = Gtk.Label("Online: ")
         fuel_plc_online_value = Gtk.Label()
 
-        fuel_plc_operational_label = Gtk.Label("Operational: ")
-        fuel_plc_operational_value = Gtk.Label()
+        fuel_plc_automation_on_button = Gtk.Button("ON")
+        fuel_plc_automation_off_button = Gtk.Button("OFF")
+
+        fuel_plc_automation_on_button.connect("clicked", self.setAutomation, 1)
+        fuel_plc_automation_off_button.connect("clicked", self.setAutomation, 0)
+
+        fuel_plc_automation_label = Gtk.Label("Automation: ")
+        fuel_plc_automation_value = Gtk.Label()
+
+        fuel_plc_valve_label = Gtk.Label("Fuel Valve: ")
+        fuel_plc_valve_value = Gtk.Label()
         
         fuel_plc_rate_label = Gtk.Label("Rate: ")
         fuel_plc_rate_value = Gtk.Label()
 
-        fuel_plc_on_button = Gtk.Button("ON")
-        fuel_plc_off_button = Gtk.Button("OFF")
+        fuel_plc_valve_on_button = Gtk.Button("ON")
+        fuel_plc_valve_off_button = Gtk.Button("OFF")
         
-        fuel_plc_on_button.connect("clicked", self.setFuelPLCOperation, 1)
-        fuel_plc_off_button.connect("clicked", self.setFuelPLCOperation, 0)
+        fuel_plc_valve_on_button.connect("clicked", self.setFuelPLCOperation, 1)
+        fuel_plc_valve_off_button.connect("clicked", self.setFuelPLCOperation, 0)
 
         #condenser_valve_start_button.connect("clicked", self.setCondenserValve, 1)
         #condenser_valve_stop_button.connect("clicked", self.setCondenserValve, 0 )
@@ -98,37 +108,53 @@ class HMIWindow(Gtk.Window):
         grid.attach(fuel_plc_online_value, 5, elementIndex, 1, 1)
         elementIndex += 1
 
-        grid.attach(fuel_plc_operational_label, 4, elementIndex, 1, 1)
-        grid.attach(fuel_plc_operational_value, 5, elementIndex, 1, 1)
+        grid.attach(fuel_plc_automation_label, 4, elementIndex, 1, 1)
+        grid.attach(fuel_plc_automation_value, 5, elementIndex, 1, 1)
+        grid.attach(fuel_plc_automation_on_button, 6, elementIndex, 1, 1)
+        grid.attach(fuel_plc_automation_off_button, 7, elementIndex, 1, 1)
         elementIndex += 1
 
+        '''grid.attach(fuel_plc_operational_label, 4, elementIndex, 1, 1)
+        grid.attach(fuel_plc_operational_value, 5, elementIndex, 1, 1)
+        elementIndex += 1
+        '''
         grid.attach(fuel_plc_rate_label, 4, elementIndex, 1, 1)
         grid.attach(fuel_plc_rate_value, 5, elementIndex, 1, 1)
         elementIndex += 1
 
-        grid.attach(fuel_plc_on_button, 5, elementIndex, 1, 1)
-        grid.attach(fuel_plc_off_button, 6, elementIndex, 1, 1)
+        grid.attach(fuel_plc_valve_label, 4, elementIndex, 1, 1)
+        grid.attach(fuel_plc_valve_value, 5, elementIndex, 1, 1)
+        grid.attach(fuel_plc_valve_on_button, 6, elementIndex, 1, 1)
+        grid.attach(fuel_plc_valve_off_button, 7, elementIndex, 1, 1)
         elementIndex += 1
 
         # Attach Value Labels
         self.fuel_plc_online_value = fuel_plc_online_value
-        self.fuel_plc_operational_value = fuel_plc_operational_value
+        self.fuel_plc_automation_value = fuel_plc_automation_value
         self.fuel_plc_rate_value = fuel_plc_rate_value
+        self.fuel_plc_valve_value = fuel_plc_valve_value
 
         # Set default label values
         self.resetLabels()
         GObject.timeout_add_seconds(MODBUS_SLEEP, self.update_status)
 
     # Control the feed pump register values
-    def setCondenserValve(self, widget, data=None):
+
+    def setAutomation(self, widget, data=None):
+        global AUTOMATION
         try:
-            self.modbusClient.write_register(0x01, data)
+            if data == 0:
+                AUTOMATION = False
+            elif data == 1:
+                AUTOMATION = True
         except:
             pass
+
         
     def update_status(self):
 
         try:
+            global AUTOMATION
             # Store the registers of the PLC in "rr"
             rr = self.modbusClient.read_holding_registers(1,16)
             regs = []
@@ -144,13 +170,29 @@ class HMIWindow(Gtk.Window):
                 raise ConnectionException
             
             self.fuel_plc_online_value.set_markup("<span weight='bold' foreground='green'>ON</span>")
-            
+
+            if AUTOMATION:
+                self.fuel_plc_automation_value.set_markup("<span weight='bold' foreground='green'>ON</span>")
+                if ( (regs[5] == 0) and (regs[6] == 0) and (regs[7] == 0) ):
+                    try:
+                        self.modbusClient.write_register(PLC_FUEL, 0)
+                    except:
+                        pass
+                if regs[5] == 1:
+                    try:
+                        self.modbusClient.write_register(PLC_FUEL, 1)
+                    except:
+                        pass
+            else:
+                self.fuel_plc_automation_value.set_markup("<span weight='bold' foreground='red'>OFF</span>")
+
             # If the feed pump "0x01" is set to 1, then the pump is running
             if regs[0] == 1:
-                self.fuel_plc_operational_value.set_markup("<span weight='bold' foreground='green'>ON</span>")
+                self.fuel_plc_valve_value.set_markup("<span weight='bold' foreground='green'>ON</span>")
             else:
-                self.fuel_plc_operational_value.set_markup("<span weight='bold' foreground='red'>OFF</span>")
+                self.fuel_plc_valve_value.set_markup("<span weight='bold' foreground='red'>OFF</span>")
 
+            
              
 
         except ConnectionException:
@@ -166,7 +208,6 @@ class HMIWindow(Gtk.Window):
             self.modbusClient.write_register(PLC_FUEL, data)
         except:
             pass
-
 
 def app_main():
     win = HMIWindow()
