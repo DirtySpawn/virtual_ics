@@ -175,22 +175,84 @@ def add_watermain(space):
     space.add(shape)
     return shape
 
+def randomINT( minimum, maximum ):
+
+    return ( randint(minimum, maximum ) )
+
 def add_light1(space):
 
     body = pymunk.Body()
     body.position = (480, 494)
     #y -45, 45
     #x 0, 120    
-    l1 = pymunk.Segment( body, (0,0),(10,25), 3 )
-    l2 = pymunk.Segment( body, (10,25), (20, 0), 3)
-    l3 = pymunk.Segment( body, (20, 0), ( 55, 40), 3 )
-    l4 = pymunk.Segment( body, (55, 40), (60, -30), 3 )
-    l5 = pymunk.Segment( body, (60, -30), (100, -45), 3 )
-    l6 = pymunk.Segment( body, (100, -45), (120, 0), 3 )
+    lightminx = 1
+    lightmaxx = 119
+    lightminy = -45
+    lightmaxy = 45
 
-    space.add( l1, l2, l3, l4, l5, l6 )
+    x = random.randint( lightminx, lightmaxx )
+    y = random.randint( lightminy, lightmaxy )
+    l1 = pymunk.Segment( body, (0,0),(x,y), 3 )
 
-    return ( l1, l2, l3, l4, l5, l6  )
+    xprev = x
+    yprev = y
+
+    x = random.randint( lightminx, lightmaxx )
+    y = random.randint( lightminy, lightmaxy )
+
+    l2 = pymunk.Segment( body, (xprev, yprev), (x, y), 3)
+
+    xprev = x
+    yprev = y
+
+    x = random.randint( lightminx, lightmaxx )
+    y = random.randint( lightminy, lightmaxy )
+
+    l3 = pymunk.Segment( body, (xprev, yprev), (x, y), 3)
+
+    xprev = x
+    yprev = y
+
+    x = random.randint( lightminx, lightmaxx )
+    y = random.randint( lightminy, lightmaxy )
+
+    l4 = pymunk.Segment( body, (xprev, yprev), (x, y), 3)
+
+    xprev = x
+    yprev = y
+
+    x = random.randint( lightminx, lightmaxx )
+    y = random.randint( lightminy, lightmaxy )
+
+    l5 = pymunk.Segment( body, (xprev, yprev), (x, y), 3)
+
+    xprev = x
+    yprev = y
+
+    x = random.randint( lightminx, lightmaxx )
+    y = random.randint( lightminy, lightmaxy )
+
+    l6 = pymunk.Segment( body, (xprev, yprev), (x, y), 3)
+
+    xprev = x
+    yprev = y
+
+    x = random.randint( lightminx, lightmaxx )
+    y = random.randint( lightminy, lightmaxy )
+
+    l7 = pymunk.Segment( body, (xprev, yprev), (x, y), 3)
+
+    xprev = x
+    yprev = y
+
+    #x = random.randint( lightminx, lightmaxx )
+    y = random.randint( lightminy, lightmaxy )
+
+    l8 = pymunk.Segment( body, (xprev, yprev), (120, y), 3)
+
+    space.add( l1, l2, l3, l4, l5, l6, l7, l8 )
+
+    return ( l1, l2, l3, l4, l5, l6, l7, l8  )
 
 def add_boiler(space):
 	body = pymunk.Body()
@@ -330,7 +392,11 @@ def run_world():
     turbine = add_turbine(space)
     turbair = add_turbine(air)
 
-    light1 = add_light1(space)
+
+    sparks = []
+    SPARKRATE = 2
+    SPARKCOLORS = ( 'red', 'white', 'yellow', 'green')
+    ticks_to_next_spark = SPARKRATE
 
     waters = []
     WATERRATE = 1
@@ -501,7 +567,6 @@ def run_world():
         for water in water_to_remove:
         	space.remove(water, water.body)
         	waters.remove(water)
-
         '''
         ticks_to_next_steam -=1
 
@@ -529,7 +594,23 @@ def run_world():
         draw_polygon(bg, watermain)
         draw_lines(bg, turbine)
 
-        draw_lines(bg, light1) # , THECOLORS['red'])
+        spark_to_remove = []
+
+        ticks_to_next_spark -= 1
+        if ticks_to_next_spark <= 0:
+            for spark in sparks:
+                spark_to_remove.append(spark)
+
+            ticks_to_next_spark = SPARKRATE
+            spark = add_light1(space)
+            sparks.append(spark)
+
+        for spark in spark_to_remove:
+            space.remove( spark)
+            sparks.remove(spark)
+
+        for spark in sparks:
+            draw_lines(bg, spark, THECOLORS[ random.choice(SPARKCOLORS) ] ) # THECOLORS['red'])
 
 
         text = str(wateramount)
