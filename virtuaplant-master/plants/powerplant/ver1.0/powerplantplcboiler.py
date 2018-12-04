@@ -38,9 +38,8 @@ if len(sys.argv)==1:
 args = parser.parse_args()
 
 MODBUS_SLEEP=1
-PLC_TURBINE = 0x03
-PLC_TURBINE_LOWPRESSURE = 0x11
-PLC_TURBINE_HIGHPRESSURE = 0x12
+PLC_BOILER = 0x02
+
 
 class HMIWindow(Gtk.Window):
     
@@ -50,13 +49,14 @@ class HMIWindow(Gtk.Window):
 
     # Default values for the HMI labels
     def resetLabels(self):
-        self.turbine_plc_online_value.set_markup("<span weight='bold' foreground='red'>OFF</span>")
-        self.turbine_plc_operational_value .set_markup("<span weight='bold' foreground='black'>N/A</span>")
+        self.boiler_plc_online_value.set_markup("<span weight='bold' foreground='red'>OFF</span>")
+        self.boiler_plc_waterlevel_value.set_markup("<span weight='bold' foreground='black'>N/A</span>")
+        self.boiler_plc_water_amount_value.set_markup("<span weight='bold' foreground='black'>N/A</span>")
         
         
     def __init__(self):
         # Window title
-        Gtk.Window.__init__(self, title="Turbine PLC")
+        Gtk.Window.__init__(self, title="Boiler PLC")
         self.set_border_width(100)
         
         #Create modbus connection
@@ -71,48 +71,48 @@ class HMIWindow(Gtk.Window):
 
         # Main title label
         label = Gtk.Label()
-        label.set_markup("<span weight='bold' size='xx-large' color='black'>PLC : Turbine</span>")
+        label.set_markup("<span weight='bold' size='xx-large' color='black'>PLC : BOILER</span>")
         grid.attach(label, 4, elementIndex, 4, 1)
         elementIndex += 1
 
         # Crude Oil Feed Pump
-        turbine_plc_online_label = Gtk.Label("Online: ")
-        turbine_plc_online_value = Gtk.Label()
+        boiler_plc_online_label = Gtk.Label("Online: ")
+        boiler_plc_online_value = Gtk.Label()
 
-        turbine_plc_operational_label = Gtk.Label("Operational: ")
-        turbine_plc_operational_value = Gtk.Label()
-        turbine_plc_operational_on_button = Gtk.Button("ON")
-        turbine_plc_operational_off_button = Gtk.Button("OFF")   
+        boiler_plc_waterlevel_label = Gtk.Label("Water Level: ")
+        boiler_plc_waterlevel_value = Gtk.Label()
 
-        turbine_plc_operational_on_button.connect("clicked", self.setTurbineOperational, 1)
-        turbine_plc_operational_off_button.connect("clicked", self.setTurbineOperational, 0)
-
-        grid.attach(turbine_plc_online_label, 4, elementIndex, 1, 1)
-        grid.attach(turbine_plc_online_value, 5, elementIndex, 1, 1)
-        elementIndex += 1
+        boiler_plc_water_amount_label = Gtk.Label("Water Amount: ")
+        boiler_plc_water_amount_value = Gtk.Label()        
         
-        grid.attach(turbine_plc_operational_label, 4, elementIndex, 1, 1)
-        grid.attach(turbine_plc_operational_value, 5, elementIndex, 1, 1)
-        grid.attach(turbine_plc_operational_on_button, 6, elementIndex, 1, 1)
-        grid.attach(turbine_plc_operational_off_button, 7, elementIndex, 1, 1)
+        grid.attach(boiler_plc_online_label, 4, elementIndex, 1, 1)
+        grid.attach(boiler_plc_online_value, 5, elementIndex, 1, 1)
         elementIndex += 1
 
+        grid.attach(boiler_plc_waterlevel_label, 4, elementIndex, 1, 1)
+        grid.attach(boiler_plc_waterlevel_value, 5, elementIndex, 1, 1)
+        elementIndex += 1
+
+        grid.attach(boiler_plc_water_amount_label, 4, elementIndex, 1, 1)
+        grid.attach(boiler_plc_water_amount_value, 5, elementIndex, 1, 1)
+        elementIndex += 1
         
         # Attach Value Labels
-        self.turbine_plc_online_value = turbine_plc_online_value
-        self.turbine_plc_operational_value = turbine_plc_operational_value
+        self.boiler_plc_online_value = boiler_plc_online_value
+        self.boiler_plc_waterlevel_value = boiler_plc_waterlevel_value
+        self.boiler_plc_water_amount_value = boiler_plc_water_amount_value
 
         # Set default label values
         self.resetLabels()
         GObject.timeout_add_seconds(MODBUS_SLEEP, self.update_status)
 
     # Control the feed pump register values
-    def setTurbineOperational(self, widget, data=None):
+    def setCondenserValve(self, widget, data=None):
         try:
-            self.modbusClient.write_register(PLC_TURBINE, data)
+            self.modbusClient.write_register(PLC_BOILER, data)
         except:
             pass
-
+        
     def update_status(self):
 
         try:
@@ -130,7 +130,7 @@ class HMIWindow(Gtk.Window):
             if not regs or len(regs) < 16:
                 raise ConnectionException
             
-            self.turbine_plc_online_value.set_markup("<span weight='bold' foreground='green'>ON</span>")
+            self.boiler_plc_online_value.set_markup("<span weight='bold' foreground='green'>ON</span>")
             
             # If the feed pump "0x01" is set to 1, then the pump is running
             '''
@@ -139,11 +139,15 @@ class HMIWindow(Gtk.Window):
             else:
                 self.fuel_plc_operational_value.set_markup("<span weight='bold' foreground='red'>OFF</span>")
             '''
-            if regs[2] == 1:
-                self.turbine_plc_operational_value.set_markup("<span weight='bold' foreground='green'>ON</span>")
-            elif regs[2] == 0:
-                self.turbine_plc_operational_value.set_markup("<span weight='bold' foreground='red'>OFF</span>")
-            
+            if ( (regs[5] == 0) and (regs[6] == 0) and (regs[7] == 0) ):
+                self.boiler_plc_waterlevel_value.set_markup("<span weight='bold' foreground='red'>EMPTY</span>")
+            if regs[5] == 1:
+                self.boiler_plc_waterlevel_value.set_markup("<span weight='bold' foreground='orange'>LOW</span>")
+            if regs[6] == 1:
+                self.boiler_plc_waterlevel_value.set_markup("<span weight='bold' foreground='gold'>MIN</span>")
+            if regs[7] == 1:
+                self.boiler_plc_waterlevel_value.set_markup("<span weight='bold' foreground='green'>MAX</span>")
+
 
         except ConnectionException:
             if not self.modbusClient.connect():
