@@ -63,12 +63,12 @@ log.setLevel(logging.INFO)
 # Display settings
 SCREEN_WIDTH = 728 #580
 SCREEN_HEIGHT = 546 #460
-FPS = 50.0 # 50.0
+FPS = 60.0 # 50.0
 
 # Port the world will listen on
 MODBUS_SERVER_PORT = 5020
 
-'''
+
 # PLC Registers
 PLC_FUEL = 0x01
 PLC_BOILER = 0x02
@@ -82,41 +82,6 @@ PLC_CONDENSER_WATER_VALVE = 0X09
 PLC_BOILER_WATER_VOLUME = 0x10
 
 PLC_PYLON = 0x0d
-'''
-
-# ******************* PLCs ************************
-# WATER PUMP
-PLC_WATERPUMP_VALVE = 0x01
-PLC_WATERPUMP_RATE = 0x02
-
-# FUEL
-PLC_FUEL_VALVE = 0x03
-PLC_FUEL_RATE = 0x04
-
-# BOILER
-PLC_BOILER = 0x05
-PLC_BOILER_TEMP = 0x06
-PLC_BOILER_WATER_VOLUME = 0x07
-PLC_BOILER_WATER_VOLUME_LOW = 0x08
-PLC_BOILER_WATER_VOLUME_HIGH = 0X09
-
-# CONDENSER
-PLC_CONDENSER_VALVE = 0x0a
-PLC_CONDENSER_WATER_VOLUME = 0x0b
-
-# TURBINE
-PLC_TURBINE_PRESSURE_HIGH = 0x0c
-PLC_TURBINE_PRESSURE_LOW = 0x0d
-
-# GENERATOR
-PLC_GENERATOR = 0x0e
-PLC_GENERATOR_OUTPUT = 0x0f
-
-# PYLON
-PLC_PYLON = 0x10
-
-# *************************************************
-
 
 # Collision Types
 
@@ -465,8 +430,8 @@ def run_world():
     ticks_to_convert_steam = STEAMRATE
 
     fires = []
-    FUELRATE = 1
-    ticks_to_next_fire = FUELRATE
+    FIRERATE = 2
+    ticks_to_next_fire = FIRERATE
 
     steams = []
     NEXTSTEAMRATE = 2
@@ -486,16 +451,9 @@ def run_world():
     previous_tag = ''
 
     LOWAMOUNT = 100
-    HIGHAMOUNT = 1000
+    MINAMOUNT = 500
+    MAXAMOUNT = 1000
     
-
-
-    #Default Settings
-    PLCSetTag(PLC_WATERPUMP_RATE, WATERRATE + 2)
-    PLCSetTag(PLC_FUEL_RATE, FUELRATE + 2)
-    PLCSetTag(PLC_BOILER_WATER_VOLUME_LOW, 100)
-    PLCSetTag(PLC_BOILER_WATER_VOLUME_HIGH, 1000)
-
     while running:
         # Advance the game clock
         clock.tick(FPS)
@@ -505,43 +463,34 @@ def run_world():
                 running = False
             elif event.type == KEYDOWN and event.key == K_ESCAPE:
                 running = False
-
+            elif event.type == KEYDOWN and event.key == pygame.K_LEFT :
+            	if PLCGetTag( PLC_CONDENSER ) == 0:
+            		PLCSetTag( PLC_CONDENSER, 1 )
+            	else:
+            		PLCSetTag( PLC_CONDENSER, 0 )
 
         # Load the background picture for the pipe images
         bg = pygame.image.load("powerplant.jpg") #pygame.image.load("oil_unit.png")
         # Background color
         screen.fill(THECOLORS["white"])
 
-        if PLCGetTag(PLC_CONDENSER_VALVE) == 1:
+        if PLCGetTag(PLC_CONDENSER) == 1:
             space.add_collision_handler( condenser_outlet_valve_collision, ball_collision, begin=condenser_valve_open )
             if(shift):
                 shift = False
                 space.gravity = (500.0, 0.0)
 
-        elif PLCGetTag(PLC_CONDENSER_VALVE) == 0:
+        elif PLCGetTag(PLC_CONDENSER) == 0:
             space.add_collision_handler( condenser_outlet_valve_collision, ball_collision, begin=condenser_valve_closed )
             shift = True
-
-        # Boiler Settings
-
-        if (PLCGetTag(PLC_BOILER_WATER_VOLUME_LOW) - 2) < 0:
-			if( PLCGetTag(PLC_BOILER_WATER_VOLUME_LOW) - 2) == -2:
-				if( (LOWAMOUNT - 10) > 0):
-					LOWAMOUNT -= 10
-			elif( PLCGetTag(PLC_BOILER_WATER_VOLUME_LOW) - 2) == -1:
-				if( (LOWAMOUNT + 10) < HIGHAMOUNT):
-					LOWAMOUNT += 10
-			PLCSetTag(PLC_BOILER_WATER_VOLUME_LOW, LOWAMOUNT)
-
-        if (PLCGetTag(PLC_BOILER_WATER_VOLUME_HIGH) - 2) < 0:
-			if( PLCGetTag(PLC_BOILER_WATER_VOLUME_HIGH) - 2) == -2:
-				if( (HIGHAMOUNT - 10) > LOWAMOUNT):
-					HIGHAMOUNT -= 10
-			elif( PLCGetTag(PLC_BOILER_WATER_VOLUME_HIGH) - 2) == -1:
-				HIGHAMOUNT += 10
-			PLCSetTag(PLC_BOILER_WATER_VOLUME_HIGH, HIGHAMOUNT)
-
-
+        elif ( PLCGetTag(PLC_CONDENSER) > 1 and PLCGetTag(PLC_CONDENSER) < 6 ):
+            pass
+            #if( sensor_tick == 0 ):
+            #    PLCSetTag(PLC_CONDENSER, previous_tag)
+            #    sensor_tick = 1
+            #else:
+            #    sensor_tick -= 1
+		
         if( shift == False):
             if (gravity_tick < 1 ):
                 shift == True
@@ -550,25 +499,12 @@ def run_world():
             else:
                 gravity_tick -= 1
 
-        if (PLCGetTag(PLC_FUEL_RATE)) - 2 < 1:
-         	change = int(PLCGetTag(PLC_FUEL_RATE)) - 1
-         	change += FUELRATE
-         	if change <= 0:
-         		change = 1
-     		elif change > 20:
-     			change = 20
-
-     		FUELRATE = change
-    		PLCSetTag(PLC_FUEL_RATE, FUELRATE + 2)
-
-
         fire_to_remove = []          
-        if PLCGetTag(PLC_FUEL_VALVE) == 1:
+        if PLCGetTag(PLC_FUEL) == 1:
             ticks_to_next_fire -= 1
 
             if ticks_to_next_fire <= 0 : #and PLCGetTag(PLC_FEED_PUMP) == 1:
-                ticks_to_next_fire = FUELRATE
-                PLCSetTag(PLC_FUEL_RATE, FUELRATE + 2)
+                ticks_to_next_fire = FIRERATE
                 fire_shape = add_fire(air)
                 fires.append(fire_shape)
 
@@ -582,24 +518,11 @@ def run_world():
             air.remove(fire, fire.body)
             fires.remove(fire)
 
-
-        if (PLCGetTag(PLC_WATERPUMP_RATE)) - 2 < 1 :
-         	change = int(PLCGetTag(PLC_WATERPUMP_RATE)) - 1
-	    	change += WATERRATE
-	    	if change <= 0:
-	    			change = 1
-    		elif change > 20 :
-    			change = 20
-
-      		WATERRATE = change
-
-    		PLCSetTag(PLC_WATERPUMP_RATE, WATERRATE + 2) 
-
-        if PLCGetTag(PLC_WATERPUMP_VALVE) == 1:
+        if PLCGetTag(PLC_CONDENSER_WATER_VALVE) == 1:
             ticks_to_next_water -= 1
+
             if ticks_to_next_water <= 0 : #and PLCGetTag(PLC_FEED_PUMP) == 1:
                 ticks_to_next_water = WATERRATE
-                PLCSetTag(PLC_WATERPUMP_RATE, WATERRATE + 2 )
                 water_shape = add_water(space)
                 water_shape.body.position = watermain.body.position
                 water_shape.body.position.y -= 12
@@ -614,7 +537,7 @@ def run_world():
             draw_ball(bg, water, 'blue')
             if water.body.position.x < 180 and water.body.position.y < 300: # for water in boiler
                 wateramount += 1
-            if (PLCGetTag(PLC_FUEL_VALVE) == 1):
+            if (PLCGetTag(PLC_FUEL) == 1):
                 if ticks_to_convert_steam <= 0:
                     if( water.body.position.x < 180 and water.body.position.y < 300 ):
                         water_to_remove.append(water)
@@ -646,7 +569,24 @@ def run_world():
             air.remove(steam, steam.body)
             steams.remove(steam)
 
-        
+        if wateramount  <= 0:
+            PLCSetTag(PLC_CONDENSER_WATER_LEVEL_LOW,0 )
+            PLCSetTag(PLC_CONDENSER_WATER_LEVEL_MIN,0 )
+            PLCSetTag(PLC_CONDENSER_WATER_LEVEL_MAX,0 )
+        elif( (wateramount >= LOWAMOUNT) and ( wateramount < MINAMOUNT) ):
+            PLCSetTag( PLC_CONDENSER_WATER_LEVEL_LOW, 1)
+            PLCSetTag(PLC_CONDENSER_WATER_LEVEL_MIN,0 )
+            PLCSetTag(PLC_CONDENSER_WATER_LEVEL_MAX,0 )
+        elif( (wateramount >= MINAMOUNT) and ( wateramount < MAXAMOUNT) ):
+            PLCSetTag( PLC_CONDENSER_WATER_LEVEL_MIN, 1)
+            PLCSetTag(PLC_CONDENSER_WATER_LEVEL_LOW,0 )
+            PLCSetTag(PLC_CONDENSER_WATER_LEVEL_MAX,0 )
+        elif( wateramount >= MAXAMOUNT ) :
+            PLCSetTag( PLC_CONDENSER_WATER_LEVEL_MAX, 1)
+            PLCSetTag(PLC_CONDENSER_WATER_LEVEL_MIN,0 )
+            PLCSetTag(PLC_CONDENSER_WATER_LEVEL_LOW,0 )
+
+
         for water in water_to_remove:
         	space.remove(water, water.body)
         	waters.remove(water)
@@ -665,7 +605,27 @@ def run_world():
           
         spark_to_remove = []
         steamcount = 0
-        
+        if( PLCGetTag(PLC_TURBINE) == 1):
+            for steam in steams:
+                if steam.body.position.y > 460:
+                    steamcount += 1
+            if steamcount > 15:    
+                ticks_to_next_spark -= 1
+                if ticks_to_next_spark <= 0:
+                    for spark in sparks:
+                        spark_to_remove.append(spark)
+
+                    ticks_to_next_spark = SPARKRATE
+                    spark = add_light1(space)
+                    sparks.append(spark)
+            else:
+                for spark in sparks:
+                    spark_to_remove.append(spark)
+
+        elif( PLCGetTag(PLC_TURBINE) == 0 and len(sparks) > 0):
+            for spark in sparks:
+                spark_to_remove.append(spark)
+
         for spark in spark_to_remove:
             space.remove( spark)
             sparks.remove(spark)
@@ -695,7 +655,6 @@ def run_world():
             space.remove( energy)
             electricenergies.remove(energy)
 
-        PLCSetTag(PLC_BOILER_WATER_VOLUME, wateramount)
 
         # Drawing Objects on Screen
         draw_lines(bg, boiler)
@@ -707,10 +666,9 @@ def run_world():
         
 
         # Used to display number of water inside Boiler
-        text = str(wateramount) + "      FuelRate: " + str(FUELRATE)
+        text = str(wateramount)
         textsurface = myfont.render( text, False, (0,0,0))
-
-
+        
 
         screen.blit(bg, (0, 0))
         screen.blit(textsurface, (0,0))
