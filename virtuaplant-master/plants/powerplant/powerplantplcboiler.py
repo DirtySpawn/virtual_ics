@@ -84,8 +84,6 @@ class HMIWindow(Gtk.Window):
     def resetLabels(self):
         self.boiler_plc_online_value.set_markup("<span weight='bold' foreground='red'>OFF</span>")
         self.boiler_plc_water_volume_value.set_markup("<span weight='bold' foreground='black'>N/A</span>")
-        self.boiler_plc_water_volume_low_value.set_markup("<span weight='bold' foreground='black'>N/A</span>")
-        self.boiler_plc_water_volume_high_value.set_markup("<span weight='bold' foreground='black'>N/A</span>")
         
 
     def __init__(self):
@@ -113,20 +111,19 @@ class HMIWindow(Gtk.Window):
         boiler_plc_online_label = Gtk.Label("Online: ")
         boiler_plc_online_value = Gtk.Label()
 
-        boiler_plc_water_volume_label = Gtk.Label("Water Amount: ")
+        boiler_plc_water_volume_label = Gtk.Label("Volume: ")
         boiler_plc_water_volume_value = Gtk.Label()       
 
-        boiler_plc_water_volume_low_label = Gtk.Label("Low Amount Alarm: ") 
+        boiler_plc_water_volume_low_label = Gtk.Label("Low Volume Alarm: ") 
         boiler_plc_water_volume_low_value = Gtk.Label()
         boiler_plc_water_volume_low_up_button = Gtk.Button("+")
         boiler_plc_water_volume_low_down_button = Gtk.Button("-")
-        boiler_plc_water_volume_low = 0
 
-        boiler_plc_water_volume_high_label = Gtk.Label("High Amount Alarm: ")
+        boiler_plc_water_volume_high_label = Gtk.Label("High Volume Alarm: ")
         boiler_plc_water_volume_high_value = Gtk.Label()
         boiler_plc_water_volume_high_up_button = Gtk.Button("+")
         boiler_plc_water_volume_high_down_button = Gtk.Button("-")
-        boiler_plc_water_volume_high = 1000
+
 
         grid.attach(boiler_plc_online_label, 4, elementIndex, 1, 1)
         grid.attach(boiler_plc_online_value, 5, elementIndex, 1, 1)
@@ -154,12 +151,12 @@ class HMIWindow(Gtk.Window):
         self.boiler_plc_water_volume_value = boiler_plc_water_volume_value
         self.boiler_plc_water_volume_low_value = boiler_plc_water_volume_low_value
         self.boiler_plc_water_volume_high_value = boiler_plc_water_volume_high_value
-        self.boiler_plc_water_volume_high = boiler_plc_water_volume_high
-        self.boiler_plc_water_volume_low = boiler_plc_water_volume_low
 
-        boiler_plc_water_volume_high_up_button.connect("clicked", self.setWaterHighAmount, 1)
+
+        boiler_plc_water_volume_high_up_button.connect("clicked", self.setWaterHighAmount, 2)
         boiler_plc_water_volume_high_down_button.connect("clicked", self.setWaterHighAmount, 0)
-        boiler_plc_water_volume_low_up_button.connect("clicked", self.setWaterLowAmount, 1)
+
+        boiler_plc_water_volume_low_up_button.connect("clicked", self.setWaterLowAmount, 2)
         boiler_plc_water_volume_low_down_button.connect("clicked", self.setWaterLowAmount, 0)
        
 
@@ -198,9 +195,18 @@ class HMIWindow(Gtk.Window):
                 raise ConnectionException
             
             self.boiler_plc_online_value.set_markup("<span weight='bold' foreground='green'>ON</span>")
-            self.boiler_plc_water_volume_low_value.set_markup("<span weight='bold' foreground='black'>" + str( regs[PLC_BOILER_WATER_VOLUME_LOW - 1] ) + "</span>")
-            self.boiler_plc_water_volume_high_value.set_markup("<span weight='bold' foreground='black'>" + str( regs[PLC_BOILER_WATER_VOLUME_HIGH - 1] ) + "</span>")
+            
             self.boiler_plc_water_volume_value.set_markup("<span weight='bold' foreground='black'>" + str( regs[PLC_BOILER_WATER_VOLUME - 1] ) + "</span>")
+
+            if(regs[PLC_BOILER_WATER_VOLUME_LOW] - 1) > 1:
+                self.boiler_plc_water_volume_low_value.set_markup("<span weight='bold' foreground='black'>" + str( (regs[PLC_BOILER_WATER_VOLUME_LOW - 1] - 3) * 10 ) + "</span>")
+            
+            self.boiler_plc_water_volume_high_value.set_markup("<span weight='bold' foreground='black'>" + str( regs[PLC_BOILER_WATER_VOLUME_HIGH - 1] * 10 ) + "</span>")
+            
+                
+
+
+                
 
         except ConnectionException:
             if not self.modbusClient.connect():

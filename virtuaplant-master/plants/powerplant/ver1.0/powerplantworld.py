@@ -666,12 +666,12 @@ def run_world():
         
 
         # Used to display number of water inside Boiler
-        text = str(wateramount)
-        textsurface = myfont.render( text, False, (0,0,0))
+        #text = str(wateramount)
+        #textsurface = myfont.render( text, False, (0,0,0))
         
 
         screen.blit(bg, (0, 0))
-        screen.blit(textsurface, (0,0))
+        #screen.blit(textsurface, (0,0))
 
         space.step(1/FPS) 
         air.step(1/FPS)
