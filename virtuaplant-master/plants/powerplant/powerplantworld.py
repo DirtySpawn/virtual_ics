@@ -418,7 +418,7 @@ def temperature_adjustment(amountwarm, tempwarm, amountcold, tempcold):
 
     return temp
 
-def temperature_from_fuel(currenttemp, amount, heatenergy):
+def increase_temperature_from_fuel(currenttemp, amount, heatenergy):
     # Q = mc DT
     # Q = Heat    m = Mass   c = Specific Heat Capacity  DT = Change in temp: Tf - To (final - original)
     # with Math.  Tf = Q / mc  + To
@@ -430,13 +430,27 @@ def temperature_from_fuel(currenttemp, amount, heatenergy):
     Tf = float( (q / ( m * c) ) + To )
     return Tf
 
+def boiling_from_fuel(amount, heatenergy):
+    # Q = mc 
+    # Q = Heat    m = Mass   c = Specific Heat Capacity  DT = Change in temp: Tf - To (final - original)
+    # with Math.  Tf = Q / mc  + To
+    q = heatenergy
+    m = amount * 20 # 1 ball is 20L - 20kg
+    c = 2260  # J / kg * C - to boil and break bonds in water to create steam
+    heatneeded = m * c
+
+    #1100 balls need 83,720,000 to boil
+    #400 balls needs 18,080,000
+    # 1,000,000 - 100,000,000 for Heat Energy
+    return heatneeded
+
 def temperature_from_cooling(currenttemp):
     # T(t) = Ts + (To - Ts)e(-kt)
     # T(t) = Temp of object at given time =  time = 1 second = final temp
     # Ts = Temp from outside  To = Starting temp   k = cooling constant   t = time = 1 second
 
     waterconstant = -0.03  # k
-    roomtemp = 25 # Ts
+    roomtemp = 60 # Ts
 
     ts = currenttemp - roomtemp # ( To - Ts)  : Ignore variable name
     #exponent = math.exp( waterconstant )
@@ -461,7 +475,7 @@ def run_world():
     space.gravity = (0.0, -900.0)
 
     air = pymunk.Space()
-    air.gravity = (0.0, 900.0)
+    air.gravity = (0.5, 900.0)
     # Add the objects to the game world
     boiler = add_boiler(space)
     plate = add_boiler(air)
@@ -495,19 +509,25 @@ def run_world():
     SPARKCOLORS = ( 'red', 'white', 'yellow', 'green')
     ticks_to_next_spark = SPARKRATE
 
+
+    ISBOILING = False   # Flag to determine if heat energy is enough to boil when water is over 100 Celsius
+    BOILINGRATE = 0
     # Rate of how water converts to steam
     STEAMRATE = 2000 # ( FPS * 1000 ) / 2
     STEAMMAXDIST = 600
-    ticks_to_convert_steam = STEAMRATE
+    ticks_to_convert_to_steam = BOILINGRATE * 20 #STEAMRATE
 
     # Rate of how much steam is created    STEAMRATE to NEXTSTEAMRATE is Water to Steam Ratio
     steams = []
     NEXTSTEAMRATE = 1
-    ticks_to_next_steam = NEXTSTEAMRATE
+    ticks_to_next_steam = BOILINGRATE # NEXTSTEAMRATE
 
     # Steam to Water Rate
-    CONVERTFROMSTEAM = 1 #1000
-    ticks_to_convert_to_water = CONVERTFROMSTEAM
+    #CONVERTFROMSTEAM = BOILINGRATE * 200 #1000
+    ticks_to_convert_to_water = BOILINGRATE * 200
+
+    WATERBALLTOSTEAMRATIO = 20  #1 WATER TO 20 STEAM
+    steamconvertedtowater = WATERBALLTOSTEAMRATIO
 
     # Set font settings
     fontBig = pygame.font.SysFont(None, 40)
@@ -529,18 +549,18 @@ def run_world():
     LOWAMOUNT = 0
     HIGHAMOUNT = 100
     
-    TEMPUPDATE = 1
+    TEMPUPDATE = 60
     ticks_til_temp_update = TEMPUPDATE
     boilerempty = True
 
-    FUELTEMPUPDATE = 60
+    FUELTEMPUPDATE = 30
     ticks_til_fuel_temp = FUELTEMPUPDATE
 
     COOLINGRATE = 60
     ticks_to_cooling = COOLINGRATE
 
-    fromvalvetemp = 20.0
-    fromcondensertemp = 32.0
+    fromvalvetemp = 75.0
+    fromcondensertemp = 90.0
 
     #Default Settings
     PLCSetTag(PLC_WATERPUMP_RATE, WATERRATE + 2)
@@ -555,6 +575,7 @@ def run_world():
     condenserwateramount = 0
 
     TEMPERATURE = 0.0
+    TURBINESTEAM = 0
 
     while running:
         # Advance the game clock
@@ -603,7 +624,7 @@ def run_world():
         if( airshift == False):
             if (airgravity_tick < 1 ):
                 airshift == True
-                air.gravity = (0.0, 900.0)
+                air.gravity = (0.5, 900.0)
                 airgravity_tick = 5
             else:
                 airgravity_tick -= 1
@@ -620,27 +641,24 @@ def run_world():
      		FUELRATE = change
     		PLCSetTag(PLC_FUEL_RATE, FUELRATE + 2)
             
-        if PLCGetTag(PLC_FUEL_VALVE) == 1:
-            HEATTRANSFER = ( 60 - ( (FUELRATE - 1) * 4 ) ) * 1000000
-        else:
-            HEATTRANSFER = 0
-
 
         fire_to_remove = []          
         if PLCGetTag(PLC_FUEL_VALVE) == 1:
             ticks_to_next_fire -= 1
-
+            HEATTRANSFER = 100000000 - ( (FUELRATE - 1) * 5000000  )
             if ticks_to_next_fire <= 0 :
                 ticks_to_next_fire = FUELRATE
                 PLCSetTag(PLC_FUEL_RATE, FUELRATE + 2)
                 fire_shape = add_fire(air)
                 fires.append(fire_shape)
+        else:
+            HEATTRANSFER = 0
 
-            for fire in fires:
-                if fire.body.position.y < 0 or fire.body.position.y > 170:
-                    fire_to_remove.append(fire)
+        for fire in fires:
+            if fire.body.position.y < 0 or fire.body.position.y > 170:
+                fire_to_remove.append(fire)
 
-                draw_ball(bg, fire, 'red')
+            draw_ball(bg, fire, 'red')
 
         for fire in fire_to_remove:
             air.remove(fire, fire.body)
@@ -693,20 +711,33 @@ def run_world():
                 if water.body.position.x > 184:                    
                     condenserwateramount += 1
 
-            if (TEMPERATURE >= 100):
-                if ticks_to_convert_steam <= 0:
+        if (TEMPERATURE >= 100) and ISBOILING:
+            #ticks_to_convert_to_steam -= 1
+            ticks_to_next_steam -= 1
+            if ticks_to_next_steam <= 0:
+                ticks_to_next_steam = BOILINGRATE
+                steam_shape = add_steam(air)
+                steams.append( steam_shape )
+
+            ticks_to_convert_to_steam -=1
+            if ticks_to_convert_to_steam <= 0:
+                for water in waters:
                     if( water.body.position.x < 184 and water.body.position.y < 300 ):
                         water_to_remove.append(water)
-                        ticks_to_convert_steam = STEAMRATE
+                        ticks_to_convert_to_steam = BOILINGRATE * 20
+                        break
+
+                '''
+                    if( water.body.position.x < 184 and water.body.position.y < 300 ):
+                        water_to_remove.append(water)
+                        ticks_to_convert_to_steam = STEAMRATE
 
                         ticks_to_next_steam -= 1
                         if ticks_to_next_steam <= 0 :
                             ticks_to_next_steam = NEXTSTEAMRATE
                             steam_shape = add_steam(air)
-                            steams.append( steam_shape )
+                            steams.append( steam_shape )'''
 
-                else:
-                    ticks_to_convert_steam -= 1
 
         # BOILER TEMP
         ticks_til_temp_update -= 1
@@ -733,45 +764,68 @@ def run_world():
                     PLCSetTag( PLC_BOILER_TEMP, TEMPERATURE )
                     waterfromcondenser = 0
 
-            if (PLCGetTag( PLC_FUEL_VALVE )):
-                pass
-
         if (PLCGetTag( PLC_FUEL_VALVE ) == 1 ):
             if boilerwateramount > 0:
                 ticks_til_fuel_temp -= 1
                 if ticks_til_fuel_temp <= 0:
-                    if TEMPERATURE < 100:
-                        TEMPERATURE = temperature_from_fuel( TEMPERATURE, boilerwateramount, HEATTRANSFER ) # currenttemp, amount, heat
+                    ticks_til_fuel_temp = FUELTEMPUPDATE
+                    if TEMPERATURE < 99:
+                        TEMPERATURE = increase_temperature_from_fuel( TEMPERATURE, boilerwateramount, HEATTRANSFER ) # currenttemp, amount, heat
                         #temp += PLCGetTag(PLC_BOILER_TEMP)
-                        PLCSetTag( PLC_BOILER_TEMP, TEMPERATURE )
-                        ticks_til_fuel_temp = FUELTEMPUPDATE
+                        if TEMPERATURE < 100:
+                            PLCSetTag( PLC_BOILER_TEMP, TEMPERATURE )
+                        else:
+                            TEMPERATURE = 100.00
+                            PLCSetTag( PLC_BOILER_TEMP, TEMPERATURE )
+                        BOILINGRATE = 0
+                        ISBOILING = False
                     else:
-                        pass
-
-        ticks_to_cooling -= 1
-        if ticks_to_cooling <= 0:
-            ticks_to_cooling = COOLINGRATE
+                        TEMPERATURE = 100.00
+                        PLCSetTag( PLC_BOILER_TEMP, TEMPERATURE )
+                        heatneeded = boiling_from_fuel( boilerwateramount, HEATTRANSFER )
+                        above = float(HEATTRANSFER) / float(heatneeded)
+                        if above >= 1:
+                            ISBOILING = True
+                            rate = above * 10
+                            if rate < 100:
+                                rate -= 100
+                                rate *= -1
+                            else:
+                                rate = 1
+                            BOILINGRATE = rate
+                        else:
+                            BOILINGRATE = 0
+                            ISBOILING = False
+        else:
+            ticks_to_cooling -= 1
+            if ticks_to_cooling <= 0:
+                ticks_to_cooling = COOLINGRATE
             if boilerwateramount > 0:
                 if TEMPERATURE > 25:
-                    pass #room temp
-                    #TEMPERATURE = temperature_from_cooling( TEMPERATURE )
-                    #PLCSetTag( PLC_BOILER_TEMP, TEMPERATURE)
+                    TEMPERATURE = temperature_from_cooling( TEMPERATURE )
+                    PLCSetTag( PLC_BOILER_TEMP, TEMPERATURE)
 
         steam_to_remove = []
+        TURBINESTEAM = 0
         for steam in steams:
-            if steam.body.position.x > 225 and steam.body.position.y > 400:
-                if ticks_to_convert_to_water <= 0:
-                    steam_to_remove.append(steam)
-                    ticks_to_convert_to_water = CONVERTFROMSTEAM
-                else:
+            if steam.body.position.y > 450:
+                TURBINESTEAM += 1
+                if steam.body.position.x > 225:
                     ticks_to_convert_to_water -= 1
+                    if ticks_to_convert_to_water <= 0:
+                        steam_to_remove.append(steam)
+                        ticks_to_convert_to_water = BOILINGRATE * 200
+
 
         for steam in steam_to_remove:
             pos = steam.body.position
-            watershape = add_water(space)
-            watershape.body.position = pos
-            watershape.body.tag = "CONDENSER"
-            waters.append( watershape)
+            steamconvertedtowater -= 1
+            if steamconvertedtowater <= 0:
+                watershape = add_water(space)
+                watershape.body.position = pos
+                watershape.body.tag = "CONDENSER"
+                waters.append( watershape)
+                steamconvertedtowater = WATERBALLTOSTEAMRATIO
             air.remove(steam, steam.body)
             steams.remove(steam)
 
@@ -861,7 +915,7 @@ def run_world():
 
 
         # Used to display number of water inside Boiler
-        text = "Temperature: " + str(TEMPERATURE)
+        text = "Temperature: " + str(TEMPERATURE) + " Boiling Rate: " + str(BOILINGRATE) + " " + str( round(BOILINGRATE,1)) + " Heat: " + str(HEATTRANSFER) + " Steam: " + str( TURBINESTEAM )
         textsurface = myfont.render( text, False, (0,0,0))
 
 
