@@ -63,26 +63,11 @@ log.setLevel(logging.INFO)
 # Display settings
 SCREEN_WIDTH = 728 #580
 SCREEN_HEIGHT = 546 #460
-FPS = 50.0 # 50.0
+FPS = 60.0 # 50.0
 
 # Port the world will listen on
 MODBUS_SERVER_PORT = 5020
 
-'''
-# PLC Registers
-PLC_FUEL = 0x01
-PLC_BOILER = 0x02
-PLC_TURBINE = 0x03
-PLC_GENERATOR = 0x04
-PLC_CONDENSER = 0x05
-PLC_CONDENSER_WATER_LEVEL_LOW = 0X06
-PLC_CONDENSER_WATER_LEVEL_MIN = 0X07
-PLC_CONDENSER_WATER_LEVEL_MAX = 0X08
-PLC_CONDENSER_WATER_VALVE = 0X09
-PLC_BOILER_WATER_VOLUME = 0x10
-
-PLC_PYLON = 0x0d
-'''
 
 # ******************* PLCs ************************
 # WATER PUMP
@@ -119,13 +104,13 @@ PLC_PYLON = 0x10
 
 PLC_TEST = 0x1f
 
+
 # Collision Types
 
 ball_collision = 0x5
 condenser_outlet_valve_collision = 0x6
-water_low_collision = 0x7
-water_min_collision = 0x8
-water_max_collision = 0x9
+turbine_highpressure_collision = 0x4
+
 
 # Functions to set PLC Values
 def PLCSetTag(addr, value):
@@ -148,9 +133,11 @@ def add_water(space):
     body = pymunk.Body(mass, inertia)
     body._bodycontents.v_limit = 120
     body._bodycontents.h_limit = 1
+    body.tag = "VALVE"
     #x = random.randint(169, 170)
     #body.position = x, 348
     shape = pymunk.Circle(body, radius, (0, 0))
+    #shape.tag = "VALVE"
     shape.friction = 0.0
     shape.collision_type = ball_collision #liquid
     space.add(body, shape)
@@ -205,7 +192,7 @@ def draw_ball(screen, ball, color):
 	color = THECOLORS[color]
 	p = int(ball.body.position.x), 600-int(ball.body.position.y)
 	pygame.draw.circle(screen, color, p, int(ball.radius), 2)
-  
+    #open flame determine water temp
 # Outlet valve that lets oil from oil tank to the pipes
 def add_condenser_outlet_valve(space):
     body = pymunk.Body()
@@ -354,16 +341,28 @@ def add_condenser(space):
 def add_turbine(space):
     body = pymunk.Body()
     body.position = (32, 465)
-    #Boiler
+    # Turbine Lines
     l1 = pymunk.Segment(body, (0, 0), (0, 70), 3)
     l2 = pymunk.Segment(body, (20, 0), (30, 10), 3)
-    l3 = pymunk.Segment(body, (0, 70), (225, 80), 3)
+    l3 = pymunk.Segment(body, (30, 70), (225, 80), 3)
     l5 = pymunk.Segment(body, (30, 10), (188, 0), 3)
     l6 = pymunk.Segment(body, (225, 80), (215, 0), 3)
 
     space.add(l1, l2, l3, l5, l6)
 
     return (l1, l2, l3, l5, l6)
+
+def add_turbine_highpressure_valve(space):
+    body = pymunk.Body()
+    body.position = (32,534)
+    # Check these coords and adjust
+    a = (-1, 0)
+    b = (30, 1)
+    radius = 2
+    shape = pymunk.Segment(body, a, b, radius)
+    shape.collision_type = turbine_highpressure_collision
+    space.add(shape)
+    return shape
 
 # Draw a defined polygon
 def draw_polygon(bg, shape):
@@ -383,7 +382,7 @@ def draw_line(screen, line, color = None):
     if color is None:
         pygame.draw.lines(screen, THECOLORS["black"], False, [p1,p2])
     else:
-        pygame.draw.lines(screen, color, False, [p1,p2])
+        pygame.draw.lines(screen, THECOLORS[color], False, [p1,p2])
     
 # Draw lines from an iterable list
 def draw_lines(screen, lines, color = None):
@@ -396,6 +395,7 @@ def draw_lines(screen, lines, color = None):
         if color is None:
             pygame.draw.lines(screen, THECOLORS["black"], False, [p1,p2])
         else:
+            color = THECOLORS[ color] 
             pygame.draw.lines(screen, color, False, [p1,p2])
 
 # Default collision function for objects
@@ -403,13 +403,46 @@ def draw_lines(screen, lines, color = None):
 def no_collision(space, arbiter, *args, **kwargs):
     return True 
 
-def condenser_valve_open(space, arbiter, *args, **kwargs):
-    log.debug("Condenser Valve Opened")
+def valve_open(space, arbiter, *args, **kwargs):
     return False
 
-def condenser_valve_closed(space, arbiter, *args, **kwargs):
-    log.debug("Condenser Valve Closed")
+def valve_closed(space, arbiter, *args, **kwargs):
     return True
+
+def temperature_adjustment(amountwarm, tempwarm, amountcold, tempcold):
+    a = float(amountwarm) * tempwarm
+    b = float(amountcold) * tempcold
+    top = float( a + b )
+    bottom = float(amountcold + amountwarm)
+    temp = float(top / bottom)
+
+    return temp
+
+def temperature_from_fuel(currenttemp, amount, heatenergy):
+    # Q = mc DT
+    # Q = Heat    m = Mass   c = Specific Heat Capacity  DT = Change in temp: Tf - To (final - original)
+    # with Math.  Tf = Q / mc  + To
+    q = float(heatenergy)
+    m = float(amount * 20) # 1 ball is 20L - 20kg
+    c = 4186.0  # J / kg * C
+    To = float( currenttemp )
+
+    Tf = float( (q / ( m * c) ) + To )
+    return Tf
+
+def temperature_from_cooling(currenttemp):
+    # T(t) = Ts + (To - Ts)e(-kt)
+    # T(t) = Temp of object at given time =  time = 1 second = final temp
+    # Ts = Temp from outside  To = Starting temp   k = cooling constant   t = time = 1 second
+
+    waterconstant = -0.03  # k
+    roomtemp = 25 # Ts
+
+    ts = currenttemp - roomtemp # ( To - Ts)  : Ignore variable name
+    #exponent = math.exp( waterconstant )
+    power = math.pow(ts, math.exp(waterconstant)) # puts to e(-kt) power
+    temp = roomtemp + power # temp = T(t)
+    return temp 
 
 def run_world():
     pygame.init()
@@ -429,13 +462,6 @@ def run_world():
 
     air = pymunk.Space()
     air.gravity = (0.0, 900.0)
-
-
-    space.add_collision_handler(water_low_collision, ball_collision, begin=None ) 
-    space.add_collision_handler(water_min_collision, ball_collision, begin=None ) 
-    space.add_collision_handler(water_max_collision, ball_collision, begin=None ) 
-
-    
     # Add the objects to the game world
     boiler = add_boiler(space)
     plate = add_boiler(air)
@@ -444,8 +470,10 @@ def run_world():
     watermain = add_watermain(space)
     turbine = add_turbine(space)
     turbair = add_turbine(air)
+    turbine_highpressure_valve = add_turbine_highpressure_valve(air)
     electricmain = add_electricmain(space)
 
+    valve_color = [ 'black', 'white']
 
     # Water Flow Rate Settings
     waters = []
@@ -467,16 +495,18 @@ def run_world():
     SPARKCOLORS = ( 'red', 'white', 'yellow', 'green')
     ticks_to_next_spark = SPARKRATE
 
-
-    STEAMRATE = 1600
+    # Rate of how water converts to steam
+    STEAMRATE = 2000 # ( FPS * 1000 ) / 2
     STEAMMAXDIST = 600
     ticks_to_convert_steam = STEAMRATE
 
+    # Rate of how much steam is created    STEAMRATE to NEXTSTEAMRATE is Water to Steam Ratio
     steams = []
-    NEXTSTEAMRATE = 2
+    NEXTSTEAMRATE = 1
     ticks_to_next_steam = NEXTSTEAMRATE
 
-    CONVERTFROMSTEAM = 10
+    # Steam to Water Rate
+    CONVERTFROMSTEAM = 1 #1000
     ticks_to_convert_to_water = CONVERTFROMSTEAM
 
     # Set font settings
@@ -484,23 +514,47 @@ def run_world():
     fontMedium = pygame.font.SysFont(None, 26)
     fontSmall = pygame.font.SysFont(None, 18)
 
+    # When Condenser Valve Opens, gravity is shifted because of odd collisions
+    # Water tends to get 'stuck'.  Gravity shift helps
     shift = True    
     gravity_tick = 5
     sensor_tick = 1
-    previous_tag = ''
 
+    # Turbine Valve - Same as Condenser
+    airshift = True    
+    airgravity_tick = 5
+    airsensor_tick = 1
+
+    #Start of Low and High Settings for the Boiler
     LOWAMOUNT = 0
     HIGHAMOUNT = 100
     
+    TEMPUPDATE = 1
+    ticks_til_temp_update = TEMPUPDATE
+    boilerempty = True
 
+    FUELTEMPUPDATE = 60
+    ticks_til_fuel_temp = FUELTEMPUPDATE
+
+    COOLINGRATE = 60
+    ticks_to_cooling = COOLINGRATE
+
+    fromvalvetemp = 20.0
+    fromcondensertemp = 32.0
 
     #Default Settings
     PLCSetTag(PLC_WATERPUMP_RATE, WATERRATE + 2)
     PLCSetTag(PLC_FUEL_RATE, FUELRATE + 2)
     PLCSetTag(PLC_BOILER_WATER_VOLUME_LOW, LOWAMOUNT)
     PLCSetTag(PLC_BOILER_WATER_VOLUME_HIGH, HIGHAMOUNT)
+    #PLCSetTag( PLC_FUEL_RATE, 100000)
+    HEATTRANSFER = 0 # Joules
 
-    PLCSetTag( PLC_TEST, 5 )
+    waterfromvalve = 0
+    waterfromcondenser = 0
+    condenserwateramount = 0
+
+    TEMPERATURE = 0.0
 
     while running:
         # Advance the game clock
@@ -519,15 +573,24 @@ def run_world():
         screen.fill(THECOLORS["white"])
 
         if PLCGetTag(PLC_CONDENSER_VALVE) == 1:
-            space.add_collision_handler( condenser_outlet_valve_collision, ball_collision, begin=condenser_valve_open )
+            space.add_collision_handler( condenser_outlet_valve_collision, ball_collision, begin=valve_open )
             if(shift):
                 shift = False
                 space.gravity = (500.0, 0.0)
 
         elif PLCGetTag(PLC_CONDENSER_VALVE) == 0:
-            space.add_collision_handler( condenser_outlet_valve_collision, ball_collision, begin=condenser_valve_closed )
+            space.add_collision_handler( condenser_outlet_valve_collision, ball_collision, begin=valve_closed )
             shift = True
 
+        if PLCGetTag( PLC_TURBINE_PRESSURE_HIGH) == 1:
+            space.add_collision_handler( turbine_highpressure_collision, ball_collision, begin=valve_open )
+            if(airshift):
+                airshift = False
+                air.gravity = (0.0, -900.0)
+
+        elif PLCGetTag( PLC_TURBINE_PRESSURE_HIGH) == 0:
+            space.add_collision_handler( turbine_highpressure_collision, ball_collision, begin=valve_closed)
+            airshift = True
 
         if( shift == False):
             if (gravity_tick < 1 ):
@@ -536,6 +599,14 @@ def run_world():
                 gravity_tick = 5
             else:
                 gravity_tick -= 1
+
+        if( airshift == False):
+            if (airgravity_tick < 1 ):
+                airshift == True
+                air.gravity = (0.0, 900.0)
+                airgravity_tick = 5
+            else:
+                airgravity_tick -= 1
 
         # FUEL / FIRE
         if (PLCGetTag(PLC_FUEL_RATE)) - 2 < 1:
@@ -548,6 +619,11 @@ def run_world():
 
      		FUELRATE = change
     		PLCSetTag(PLC_FUEL_RATE, FUELRATE + 2)
+            
+        if PLCGetTag(PLC_FUEL_VALVE) == 1:
+            HEATTRANSFER = ( 60 - ( (FUELRATE - 1) * 4 ) ) * 1000000
+        else:
+            HEATTRANSFER = 0
 
 
         fire_to_remove = []          
@@ -607,10 +683,17 @@ def run_world():
             draw_ball(bg, water, 'blue')
             if water.body.position.x < 184 and water.body.position.y < 300: # for water in boiler
                 boilerwateramount += 1
+                if water.body.tag == "VALVE":
+                    waterfromvalve += 1
+                    water.body.tag = "BOILER"
+                elif water.body.tag == "CONDENSER":
+                    waterfromcondenser += 1
+                    water.body.tag = "BOILER"
             else:
-                condenserwateramount += 1
+                if water.body.position.x > 184:                    
+                    condenserwateramount += 1
 
-            if (PLCGetTag(PLC_FUEL_VALVE) == 1):
+            if (TEMPERATURE >= 100):
                 if ticks_to_convert_steam <= 0:
                     if( water.body.position.x < 184 and water.body.position.y < 300 ):
                         water_to_remove.append(water)
@@ -625,6 +708,55 @@ def run_world():
                 else:
                     ticks_to_convert_steam -= 1
 
+        # BOILER TEMP
+        ticks_til_temp_update -= 1
+        if ticks_til_temp_update <= 0:
+            ticks_til_temp_update = TEMPUPDATE 
+            if boilerwateramount == 0:
+                PLCSetTag( PLC_BOILER_TEMP, 0.0)
+                TEMPERATURE = 0.0
+            else:
+                amount = boilerwateramount - waterfromvalve - waterfromcondenser
+                if waterfromvalve > 0:
+                    if (TEMPERATURE > fromvalvetemp ):
+                        TEMPERATURE = temperature_adjustment( amount, TEMPERATURE, waterfromvalve, fromvalvetemp)
+                    else:
+                        TEMPERATURE = temperature_adjustment( waterfromvalve, fromvalvetemp, amount, TEMPERATURE )
+                    PLCSetTag( PLC_BOILER_TEMP, TEMPERATURE )
+                    amount += waterfromvalve
+                    waterfromvalve = 0
+                if waterfromcondenser > 0:
+                    if (PLCGetTag(PLC_BOILER_TEMP) > fromcondensertemp ):
+                        TEMPERATURE = temperature_adjustment( amount, TEMPERATURE, waterfromcondenser, fromcondensertemp)
+                    else:
+                        TEMPERATURE = temperature_adjustment( waterfromcondenser, fromcondensertemp, amount,TEMPERATURE )
+                    PLCSetTag( PLC_BOILER_TEMP, TEMPERATURE )
+                    waterfromcondenser = 0
+
+            if (PLCGetTag( PLC_FUEL_VALVE )):
+                pass
+
+        if (PLCGetTag( PLC_FUEL_VALVE ) == 1 ):
+            if boilerwateramount > 0:
+                ticks_til_fuel_temp -= 1
+                if ticks_til_fuel_temp <= 0:
+                    if TEMPERATURE < 100:
+                        TEMPERATURE = temperature_from_fuel( TEMPERATURE, boilerwateramount, HEATTRANSFER ) # currenttemp, amount, heat
+                        #temp += PLCGetTag(PLC_BOILER_TEMP)
+                        PLCSetTag( PLC_BOILER_TEMP, TEMPERATURE )
+                        ticks_til_fuel_temp = FUELTEMPUPDATE
+                    else:
+                        pass
+
+        ticks_to_cooling -= 1
+        if ticks_to_cooling <= 0:
+            ticks_to_cooling = COOLINGRATE
+            if boilerwateramount > 0:
+                if TEMPERATURE > 25:
+                    pass #room temp
+                    #TEMPERATURE = temperature_from_cooling( TEMPERATURE )
+                    #PLCSetTag( PLC_BOILER_TEMP, TEMPERATURE)
+
         steam_to_remove = []
         for steam in steams:
             if steam.body.position.x > 225 and steam.body.position.y > 400:
@@ -638,6 +770,7 @@ def run_world():
             pos = steam.body.position
             watershape = add_water(space)
             watershape.body.position = pos
+            watershape.body.tag = "CONDENSER"
             waters.append( watershape)
             air.remove(steam, steam.body)
             steams.remove(steam)
@@ -708,6 +841,7 @@ def run_world():
             if HIGHAMOUNT <= LOWAMOUNT:
                 HIGHAMOUNT = LOWAMOUNT + 1
 
+
         PLCSetTag(PLC_BOILER_WATER_VOLUME_LOW, LOWAMOUNT + 3)
         PLCSetTag(PLC_BOILER_WATER_VOLUME_HIGH, HIGHAMOUNT)
         PLCSetTag(PLC_BOILER_WATER_VOLUME, boilerwateramount)
@@ -719,14 +853,15 @@ def run_world():
         # Drawing Objects on Screen
         draw_lines(bg, boiler)
         draw_lines(bg, condenser)
-        draw_line(bg, condenser_valve, THECOLORS['red'])
+        draw_line(bg, condenser_valve, valve_color[( PLCGetTag(PLC_CONDENSER_VALVE)) ] )
         draw_polygon(bg, watermain)
         draw_lines(bg, turbine)
         draw_polygon(bg, electricmain)
-        
+        draw_line(bg, turbine_highpressure_valve, valve_color[( PLCGetTag(PLC_TURBINE_PRESSURE_HIGH)) ] )
+
 
         # Used to display number of water inside Boiler
-        text = "Boiler: " + str(boilerwateramount) + "      Condenser: " + str(condenserwateramount)
+        text = "Temperature: " + str(TEMPERATURE)
         textsurface = myfont.render( text, False, (0,0,0))
 
 

@@ -38,9 +38,39 @@ if len(sys.argv)==1:
 args = parser.parse_args()
 
 MODBUS_SLEEP=1
-PLC_TURBINE = 0x03
-PLC_TURBINE_LOWPRESSURE = 0x11
-PLC_TURBINE_HIGHPRESSURE = 0x12
+
+# ******************* PLCs ************************
+# WATER PUMP
+PLC_WATERPUMP_VALVE = 0x01
+PLC_WATERPUMP_RATE = 0x02
+
+# FUEL
+PLC_FUEL_VALVE = 0x03
+PLC_FUEL_RATE = 0x04
+
+# BOILER
+PLC_BOILER = 0x05
+PLC_BOILER_TEMP = 0x06
+PLC_BOILER_WATER_VOLUME = 0x07
+PLC_BOILER_WATER_VOLUME_LOW = 0x08
+PLC_BOILER_WATER_VOLUME_HIGH = 0X09
+
+# CONDENSER
+PLC_CONDENSER_VALVE = 0x0a
+PLC_CONDENSER_WATER_VOLUME = 0x0b
+
+# TURBINE
+PLC_TURBINE_PRESSURE_HIGH = 0x0c
+PLC_TURBINE_PRESSURE_LOW = 0x0d
+
+# GENERATOR
+PLC_GENERATOR = 0x0e
+PLC_GENERATOR_OUTPUT = 0x0f
+
+# PYLON
+PLC_PYLON = 0x10
+
+# *************************************************
 
 class HMIWindow(Gtk.Window):
     
@@ -51,7 +81,6 @@ class HMIWindow(Gtk.Window):
     # Default values for the HMI labels
     def resetLabels(self):
         self.turbine_plc_online_value.set_markup("<span weight='bold' foreground='red'>OFF</span>")
-        self.turbine_plc_operational_value .set_markup("<span weight='bold' foreground='black'>N/A</span>")
         
         
     def __init__(self):
@@ -79,28 +108,14 @@ class HMIWindow(Gtk.Window):
         turbine_plc_online_label = Gtk.Label("Online: ")
         turbine_plc_online_value = Gtk.Label()
 
-        turbine_plc_operational_label = Gtk.Label("Operational: ")
-        turbine_plc_operational_value = Gtk.Label()
-        turbine_plc_operational_on_button = Gtk.Button("ON")
-        turbine_plc_operational_off_button = Gtk.Button("OFF")   
-
-        turbine_plc_operational_on_button.connect("clicked", self.setTurbineOperational, 1)
-        turbine_plc_operational_off_button.connect("clicked", self.setTurbineOperational, 0)
-
         grid.attach(turbine_plc_online_label, 4, elementIndex, 1, 1)
         grid.attach(turbine_plc_online_value, 5, elementIndex, 1, 1)
         elementIndex += 1
         
-        grid.attach(turbine_plc_operational_label, 4, elementIndex, 1, 1)
-        grid.attach(turbine_plc_operational_value, 5, elementIndex, 1, 1)
-        grid.attach(turbine_plc_operational_on_button, 6, elementIndex, 1, 1)
-        grid.attach(turbine_plc_operational_off_button, 7, elementIndex, 1, 1)
-        elementIndex += 1
 
         
         # Attach Value Labels
         self.turbine_plc_online_value = turbine_plc_online_value
-        self.turbine_plc_operational_value = turbine_plc_operational_value
 
         # Set default label values
         self.resetLabels()
@@ -132,17 +147,6 @@ class HMIWindow(Gtk.Window):
             
             self.turbine_plc_online_value.set_markup("<span weight='bold' foreground='green'>ON</span>")
             
-            # If the feed pump "0x01" is set to 1, then the pump is running
-            '''
-            if regs[0] == 1:
-                self.fuel_plc_operational_value.set_markup("<span weight='bold' foreground='green'>ON</span>")
-            else:
-                self.fuel_plc_operational_value.set_markup("<span weight='bold' foreground='red'>OFF</span>")
-            '''
-            if regs[2] == 1:
-                self.turbine_plc_operational_value.set_markup("<span weight='bold' foreground='green'>ON</span>")
-            elif regs[2] == 0:
-                self.turbine_plc_operational_value.set_markup("<span weight='bold' foreground='red'>OFF</span>")
             
 
         except ConnectionException:
