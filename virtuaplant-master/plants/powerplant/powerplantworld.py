@@ -38,7 +38,7 @@ class MyParser(argparse.ArgumentParser):
     def error(self, message):
         sys.stderr.write('error: %s\n' % message)
         self.print_help()
-        sys.exit(2)        
+        sys.exit(2)
 # Create argparser object to add command line args and help option
 parser = MyParser(
     description = 'This Python script starts the SCADA/ICS World Server',
@@ -52,7 +52,7 @@ parser.add_argument("-t", action = "store", dest="server_addr",
 if len(sys.argv)==1:
 	parser.print_help()
 	sys.exit(1)
-	
+
 # Split and process arguments into "args"
 args = parser.parse_args()
 
@@ -227,7 +227,7 @@ def add_light1(space):
     body = pymunk.Body()
     body.position = (480, 494)
     #y -45, 45
-    #x 0, 120    
+    #x 0, 120
     lightminx = 1
     lightmaxx = 119
     lightminy = -45
@@ -324,7 +324,7 @@ def add_condenser(space):
 	#l2 = pymunk.Segment( body, (220,15), (220, 200), 3) # right line
 	#l3 = pymunk.Segment( body, (220, 200), (100, 200), 3 ) #top line
 
-	l4 = pymunk.Segment( body, (0, 25), (35, 50), 3 )  # (100, 35), 3 ) 
+	l4 = pymunk.Segment( body, (0, 25), (35, 50), 3 )  # (100, 35), 3 )
 
 	#l5 = pymunk.Segment( body, (100, 55), (100, 65), 3)
 	#l6 = pymunk.Segment( body, (100, 55), (100, 200), 3)
@@ -371,7 +371,7 @@ def draw_polygon(bg, shape):
     for p in points:
         fpoints.append(to_pygame(p))
     pygame.draw.polygon(bg, THECOLORS['red'], fpoints)
-    
+
 # Draw a single line to the screen
 def draw_line(screen, line, color = None):
     body = line.body
@@ -383,7 +383,7 @@ def draw_line(screen, line, color = None):
         pygame.draw.lines(screen, THECOLORS["black"], False, [p1,p2])
     else:
         pygame.draw.lines(screen, THECOLORS[color], False, [p1,p2])
-    
+
 # Draw lines from an iterable list
 def draw_lines(screen, lines, color = None):
     for line in lines:
@@ -395,13 +395,13 @@ def draw_lines(screen, lines, color = None):
         if color is None:
             pygame.draw.lines(screen, THECOLORS["black"], False, [p1,p2])
         else:
-            color = THECOLORS[ color] 
+            color = THECOLORS[ color]
             pygame.draw.lines(screen, color, False, [p1,p2])
 
 # Default collision function for objects
 # Returning true makes the two objects collide normally just like "walls/pipes"
 def no_collision(space, arbiter, *args, **kwargs):
-    return True 
+    return True
 
 def valve_open(space, arbiter, *args, **kwargs):
     return False
@@ -442,7 +442,7 @@ def temperature_from_cooling(currenttemp):
     #exponent = math.exp( waterconstant )
     power = math.pow(ts, math.exp(waterconstant)) # puts to e(-kt) power
     temp = roomtemp + power # temp = T(t)
-    return temp 
+    return temp
 
 def run_world():
     pygame.init()
@@ -516,19 +516,21 @@ def run_world():
 
     # When Condenser Valve Opens, gravity is shifted because of odd collisions
     # Water tends to get 'stuck'.  Gravity shift helps
-    shift = True    
+    shift = True
     gravity_tick = 5
     sensor_tick = 1
 
     # Turbine Valve - Same as Condenser
-    airshift = True    
+    airshift = True
     airgravity_tick = 5
     airsensor_tick = 1
+
+    RPMs= 0.0
 
     #Start of Low and High Settings for the Boiler
     LOWAMOUNT = 0
     HIGHAMOUNT = 100
-    
+
     TEMPUPDATE = 1
     ticks_til_temp_update = TEMPUPDATE
     boilerempty = True
@@ -619,14 +621,14 @@ def run_world():
 
      		FUELRATE = change
     		PLCSetTag(PLC_FUEL_RATE, FUELRATE + 2)
-            
+
         if PLCGetTag(PLC_FUEL_VALVE) == 1:
             HEATTRANSFER = ( 60 - ( (FUELRATE - 1) * 4 ) ) * 1000000
         else:
             HEATTRANSFER = 0
 
 
-        fire_to_remove = []          
+        fire_to_remove = []
         if PLCGetTag(PLC_FUEL_VALVE) == 1:
             ticks_to_next_fire -= 1
 
@@ -659,7 +661,7 @@ def run_world():
 
       		WATERRATE = change
 
-    		PLCSetTag(PLC_WATERPUMP_RATE, WATERRATE + 2) 
+    		PLCSetTag(PLC_WATERPUMP_RATE, WATERRATE + 2)
 
         if PLCGetTag(PLC_WATERPUMP_VALVE) == 1:
             ticks_to_next_water -= 1
@@ -690,7 +692,7 @@ def run_world():
                     waterfromcondenser += 1
                     water.body.tag = "BOILER"
             else:
-                if water.body.position.x > 184:                    
+                if water.body.position.x > 184:
                     condenserwateramount += 1
 
             if (TEMPERATURE >= 100):
@@ -711,7 +713,7 @@ def run_world():
         # BOILER TEMP
         ticks_til_temp_update -= 1
         if ticks_til_temp_update <= 0:
-            ticks_til_temp_update = TEMPUPDATE 
+            ticks_til_temp_update = TEMPUPDATE
             if boilerwateramount == 0:
                 PLCSetTag( PLC_BOILER_TEMP, 0.0)
                 TEMPERATURE = 0.0
@@ -775,7 +777,7 @@ def run_world():
             air.remove(steam, steam.body)
             steams.remove(steam)
 
-        
+
         for water in water_to_remove:
         	space.remove(water, water.body)
         	waters.remove(water)
@@ -791,10 +793,11 @@ def run_world():
         for steam in steam_to_remove:
             air.remove( steam, steam.body )
             steams.remove(steam)
-          
+
         spark_to_remove = []
         steamcount = 0
-        
+        RPMs = (steamcount * 1000)
+
         for spark in spark_to_remove:
             space.remove( spark)
             sparks.remove(spark)
@@ -863,13 +866,17 @@ def run_world():
         # Used to display number of water inside Boiler
         text = "Temperature: " + str(TEMPERATURE)
         textsurface = myfont.render( text, False, (0,0,0))
+        # Displays the number of RPMs from the Turbine
+        text_1 = "RPMs: " + str(steamcount * 1000)
+        textsurface_1 = myfont.render( text_1, False, (0,0,0))
 
 
 
         screen.blit(bg, (0, 0))
         screen.blit(textsurface, (0,0))
+        screen.blit(textsurface_1, (0,40))
 
-        space.step(1/FPS) 
+        space.step(1/FPS)
         air.step(1/FPS)
         pygame.display.flip()
 
