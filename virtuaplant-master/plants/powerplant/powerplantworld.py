@@ -843,7 +843,7 @@ def run_world():
 
         electricenergy_to_remove = []
 
-        if( PLCGetTag(PLC_PYLON) == 1 ):
+        if( PLCGetTag(PLC_PYLON_STATUS) == 1 ):
         	if( len(sparks) > 0 ):
 	            for energy in electricenergies:
 	                draw_ball(bg, energy,random.choice(SPARKCOLORS))
