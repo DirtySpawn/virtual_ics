@@ -49,7 +49,7 @@ class HMIWindow(Gtk.Window):
     # Default values for the HMI labels
     def resetLabels(self):
         self.pylon_plc_online_value.set_markup("<span weight='bold' foreground='red'>OFF</span>")
-        self.pylon_plc_operational_value .set_markup("<span weight='bold' foreground='black'>N/A</span>")
+        self.pylon_plc_status_value .set_markup("<span weight='bold' foreground='black'>N/A</span>")
 
 
     def __init__(self):
@@ -83,8 +83,8 @@ class HMIWindow(Gtk.Window):
         pylon_plc_status_value = Gtk.Label()
         pylon_plc_status_on_button = Gtk.Button("ON")
         pylon_plc_status_off_button = Gtk.Button("OFF")
-        pylon_plc_status_on_button.connect("clicked", self.setpylonStatus, 1)
-        pylon_plc_status_off_button.connect("clicked", self.setpylonStatus, 0)
+        pylon_plc_status_on_button.connect("clicked", self.setPylonStatus, 1)
+        pylon_plc_status_off_button.connect("clicked", self.setPylonStatus, 0)
 
         #pylon power gauge
         pylon_plc_power_label = Gtk.Label("Power Level: ")
@@ -111,7 +111,7 @@ class HMIWindow(Gtk.Window):
         # Attach Value Labels
         self.pylon_plc_online_value = pylon_plc_online_value
         self.pylon_plc_status_value = pylon_plc_status_value
-        self.pylon_plc_output_value = pylon_plc_output_value
+        self.pylon_plc_power_value = pylon_plc_power_value
 
 
         # Set default label values
@@ -119,7 +119,7 @@ class HMIWindow(Gtk.Window):
         GObject.timeout_add_seconds(MODBUS_SLEEP, self.update_status)
 
     # Control the feed pump register values
-    def setPylonOperational(self, widget, data=None):
+    def setPylonStatus(self, widget, data=None):
         try:
             self.modbusClient.write_register(PLC_PYLON, data)
         except:
@@ -157,11 +157,11 @@ class HMIWindow(Gtk.Window):
                     if regs[PLC_TURBINE_RPMs - 1] == 0:
                         self.pylon_plc_power_value.set_markup("<span weight='bold' foreground='red'>No Output</span>")
                     if regs[PLC_TURBINE_RPMs - 1] == 1:
-                        self.pylon_plc_output_value.set_markup("<span weight='bold' foreground='gold'>Low Power</span>")
+                        self.pylon_plc_power_value.set_markup("<span weight='bold' foreground='gold'>Low Power</span>")
                     if regs[PLC_TURBINE_RPMs - 1] == 2:
-                        self.pylon_plc_output_value.set_markup("<span weight='bold' foreground='green'>Normal Power</span>")
+                        self.pylon_plc_power_value.set_markup("<span weight='bold' foreground='green'>Normal Power</span>")
                     if regs[PLC_TURBINE_RPMs - 1] == 3:
-                        self.pylon_plc_output_value.set_markup("<span weight='bold' foreground='crimson'>DANGER</span>")
+                        self.pylon_plc_power_value.set_markup("<span weight='bold' foreground='crimson'>DANGER</span>")
 
 
             # If the feed pump "0x01" is set to 1, then the pump is running
@@ -170,12 +170,12 @@ class HMIWindow(Gtk.Window):
                 self.fuel_plc_operational_value.set_markup("<span weight='bold' foreground='green'>ON</span>")
             else:
                 self.fuel_plc_operational_value.set_markup("<span weight='bold' foreground='red'>OFF</span>")
-            '''
+
             if regs[12] == 0:
                 self.pylon_plc_operational_value .set_markup("<span weight='bold' foreground='red'>OFF</span>")
             elif regs[12] == 1:
                 self.pylon_plc_operational_value.set_markup("<span weight='bold' foreground='green'>ON</span>")
-
+            '''
 
         except ConnectionException:
             if not self.modbusClient.connect():
