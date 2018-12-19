@@ -56,6 +56,9 @@ PLC_BOILER_WATER_VOLUME = 0x07
 PLC_BOILER_WATER_VOLUME_LOW = 0x08
 PLC_BOILER_WATER_VOLUME_HIGH = 0X09
 
+PLC_BOILER_NEED_WATER = 0x13
+PLC_BOILER_STOP_WATER = 0x14
+
 # CONDENSER
 PLC_CONDENSER_VALVE = 0x0a
 PLC_CONDENSER_WATER_VOLUME = 0x0b
@@ -63,18 +66,25 @@ PLC_CONDENSER_WATER_VOLUME = 0x0b
 # TURBINE
 PLC_TURBINE_PRESSURE_HIGH = 0x0c
 PLC_TURBINE_PRESSURE_LOW = 0x0d
+PLC_TURBINE_RPMs = 0x11
 
 # GENERATOR
 PLC_GENERATOR = 0x0e
 PLC_GENERATOR_OUTPUT = 0x0f
 
 # PYLON
-PLC_PYLON = 0x10
+PLC_PYLON_STATUS = 0x10
+PLC_PYLON_POWER = 0x12
+
+# *************************************************
+
 
 # *************************************************
 BUTTONACTIVE = 5
 ticks_button_up_active = BUTTONACTIVE
 ticks_button_down_active = BUTTONACTIVE
+
+WATER_RATE = [ 'MAX', 'HIGH', 'MED', 'LOW' ] 
 
 class HMIWindow(Gtk.Window):
     
@@ -130,7 +140,7 @@ class HMIWindow(Gtk.Window):
         waterpump_plc_rate_up_button = Gtk.Button("+")
         waterpump_plc_rate_down_button = Gtk.Button("-")
 
-        waterpump_plc_rate_up_button.connect("clicked", self.setWaterPumpRate, 0)
+        waterpump_plc_rate_up_button.connect("clicked", self.setWaterPumpRate, 0 ) 
         waterpump_plc_rate_down_button.connect("clicked", self.setWaterPumpRate, 2)
 
         grid.attach(waterpump_plc_online_label, 4, elementIndex, 1, 1)
@@ -183,7 +193,7 @@ class HMIWindow(Gtk.Window):
 
         try:
             # Store the registers of the PLC in "rr"
-            rr = self.modbusClient.read_holding_registers(1,16)
+            rr = self.modbusClient.read_holding_registers(1,24)
             regs = []
 
             # If we get back a blank response, something happened connecting to the PLC
@@ -200,16 +210,21 @@ class HMIWindow(Gtk.Window):
             self.waterpump_plc_online_value.set_markup("<span weight='bold' foreground='green'>ON</span>")
             
             if regs[PLC_WATERPUMP_RATE - 1] > 1:
-                rate = int(regs[PLC_WATERPUMP_RATE - 1]) - 1
-                rate *= -10
-                rate += 120
-                self.waterpump_plc_water_rate_value.set_markup("<span weight='bold' foreground='green'>" + str(rate) + "%</span>")
+                rate = int( regs[PLC_WATERPUMP_RATE - 1]) - 3 
+                
+                self.waterpump_plc_water_rate_value.set_markup("<span weight='bold' foreground='green'>" + str(WATER_RATE[rate]) + "</span>")
+
 
             if regs[PLC_WATERPUMP_VALVE - 1] == 0:
                 self.waterpump_plc_valve_value.set_markup("<span weight='bold' foreground='red'>OFF</span>")
             if regs[ PLC_WATERPUMP_VALVE - 1 ] == 1:
                 self.waterpump_plc_valve_value.set_markup("<span weight='bold' foreground='green'>ON</span>")
            
+
+            if regs[PLC_BOILER_NEED_WATER - 1] == 1:
+                self.modbusClient.write_register(PLC_WATERPUMP_VALVE, 1)
+            elif regs[PLC_BOILER_STOP_WATER - 1] == 1:
+                self.modbusClient.write_register(PLC_WATERPUMP_VALVE, 0)
 
         except ConnectionException:
             if not self.modbusClient.connect():
