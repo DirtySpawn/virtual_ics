@@ -71,7 +71,8 @@ PLC_GENERATOR_STATUS = 0x0e
 PLC_GENERATOR_OUTPUT = 0x0f
 
 # PYLON
-PLC_PYLON = 0x10
+PLC_PYLON_STATUS = 0x10
+PLC_PYLON_POWER = 0x12
 
 # *************************************************
 class HMIWindow(Gtk.Window):

@@ -38,7 +38,42 @@ if len(sys.argv)==1:
 args = parser.parse_args()
 
 MODBUS_SLEEP=1
-PLC_PYLON = 0x0d
+
+# ******************* PLCs ************************
+# WATER PUMP
+PLC_WATERPUMP_VALVE = 0x01
+PLC_WATERPUMP_RATE = 0x02
+
+# FUEL
+PLC_FUEL_VALVE = 0x03
+PLC_FUEL_RATE = 0x04
+
+# BOILER
+PLC_BOILER = 0x05
+PLC_BOILER_TEMP = 0x06
+PLC_BOILER_WATER_VOLUME = 0x07
+PLC_BOILER_WATER_VOLUME_LOW = 0x08
+PLC_BOILER_WATER_VOLUME_HIGH = 0X09
+
+# CONDENSER
+PLC_CONDENSER_VALVE = 0x0a
+PLC_CONDENSER_WATER_VOLUME = 0x0bPLC_PYLON_STATUS = 0x10
+
+# TURBINE
+PLC_TURBINE_PRESSURE_HIGH = 0x0c
+PLC_TURBINE_PRESSURE_LOW = 0x0d
+PLC_TURBINE_RPMs = 0x11
+
+
+# GENERATOR
+PLC_GENERATOR_STATUS = 0x0e
+PLC_GENERATOR_OUTPUT = 0x0f
+
+# PYLON
+PLC_PYLON_STATUS = 0x10
+PLC_PYLON_POWER = 0x12
+
+
 
 class HMIWindow(Gtk.Window):
 
@@ -121,7 +156,7 @@ class HMIWindow(Gtk.Window):
     # Control the feed pump register values
     def setPylonStatus(self, widget, data=None):
         try:
-            self.modbusClient.write_register(PLC_PYLON, data)
+            self.modbusClient.write_register(PLC_PYLON_STATUS, data)
         except:
             pass
 
