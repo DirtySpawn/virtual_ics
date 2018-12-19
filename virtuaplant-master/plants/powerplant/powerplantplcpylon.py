@@ -57,7 +57,7 @@ PLC_BOILER_WATER_VOLUME_HIGH = 0X09
 
 # CONDENSER
 PLC_CONDENSER_VALVE = 0x0a
-PLC_CONDENSER_WATER_VOLUME = 0x0bPLC_PYLON_STATUS = 0x10
+PLC_CONDENSER_WATER_VOLUME = 0x0b
 
 # TURBINE
 PLC_TURBINE_PRESSURE_HIGH = 0x0c
@@ -183,9 +183,14 @@ class HMIWindow(Gtk.Window):
 # exmaple follows
 
             if regs[ PLC_GENERATOR_STATUS - 1 ] == 0:
-                if regs[PLC_PYLON_STATUS - 1] == 0:
-                    self.pylon_plc_status_value.set_markup("<span weight='bold' foreground='red'>OFF</span>")
-                    self.pylon_plc_power_value.set_markup("<span weight='bold' foreground='red'>No Power</span>")
+                try:
+                    self.modbusClient.write_register(PLC_PYLON_STATUS, 0)
+                except:
+                    pass
+
+            if regs[PLC_PYLON_STATUS - 1] == 0:
+                self.pylon_plc_status_value.set_markup("<span weight='bold' foreground='red'>OFF</span>")
+                self.pylon_plc_power_value.set_markup("<span weight='bold' foreground='red'>No Power</span>")
             if regs[ PLC_GENERATOR_STATUS - 1 ] == 1:
                 if regs[ PLC_PYLON_STATUS - 1 ] == 1:
                     self.pylon_plc_status_value.set_markup("<span weight='bold' foreground='green'>ON</span>")
