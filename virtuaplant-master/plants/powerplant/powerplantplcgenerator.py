@@ -69,7 +69,7 @@ PLC_TURBINE_PRESSURE_LOW = 0x0d
 PLC_TURBINE_RPMs = 0x11
 
 # GENERATOR
-PLC_GENERATOR = 0x0e
+PLC_GENERATOR_STATUS = 0x0e
 PLC_GENERATOR_OUTPUT = 0x0f
 
 # PYLON
@@ -197,10 +197,11 @@ class HMIWindow(Gtk.Window):
 
             self.generator_plc_online_value.set_markup("<span weight='bold' foreground='green'>ON</span>")
 
-
+            
             if regs[PLC_GENERATOR_STATUS - 1] == 0:
                 self.generator_plc_status_value.set_markup("<span weight='bold' foreground='red'>OFF</span>")
                 self.generator_plc_output_value.set_markup("<span weight='bold' foreground='red'>No Output</span>")
+            
             if regs[ PLC_GENERATOR_STATUS - 1 ] == 1:
                 self.generator_plc_status_value.set_markup("<span weight='bold' foreground='green'>ON</span>")
                 if regs[PLC_TURBINE_RPMs - 1] == 0:

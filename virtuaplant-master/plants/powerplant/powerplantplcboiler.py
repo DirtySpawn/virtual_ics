@@ -70,7 +70,7 @@ PLC_TURBINE_PRESSURE_LOW = 0x0d
 PLC_TURBINE_RPMs = 0x11
 
 # GENERATOR
-PLC_GENERATOR = 0x0e
+PLC_GENERATOR_STATUS = 0x0e
 PLC_GENERATOR_OUTPUT = 0x0f
 
 # PYLON
@@ -318,6 +318,7 @@ class HMIWindow(Gtk.Window):
             self.boiler_plc_water_volume_low_value.set_markup("<span weight='bold' foreground='black'>" + str( regs[PLC_BOILER_WATER_VOLUME_LOW - 1] ) + "</span>")
             self.boiler_plc_water_volume_high_value.set_markup("<span weight='bold' foreground='black'>" + str( regs[PLC_BOILER_WATER_VOLUME_HIGH - 1] ) + "</span>")
             
+            '''
             if regs[PLC_BOILER_WATER_VOLUME - 1] < regs[PLC_BOILER_WATER_VOLUME_LOW - 1]:
                 # request turn on pump
                 try:
@@ -335,7 +336,7 @@ class HMIWindow(Gtk.Window):
                     self.modbusClient.write_register(PLC_BOILER_STOP_WATER, 1)
                 except:
                     pass
-            
+            '''
 
         except ConnectionException:
             if not self.modbusClient.connect():

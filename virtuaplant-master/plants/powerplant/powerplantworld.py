@@ -98,7 +98,7 @@ PLC_TURBINE_PRESSURE_LOW = 0x0d
 PLC_TURBINE_RPMs = 0x11
 
 # GENERATOR
-PLC_GENERATOR = 0x0e
+PLC_GENERATOR_STATUS = 0x0e
 PLC_GENERATOR_OUTPUT = 0x0f
 
 # PYLON
@@ -234,7 +234,7 @@ def add_electricmain(space):
     space.add(shape)
     return shape
 
-def add_light1(space):
+def add_light(space):
 
     body = pymunk.Body()
     body.position = (480, 494)
@@ -349,25 +349,14 @@ def add_turbine(space):
     # Turbine Lines
     l1 = pymunk.Segment(body, (0, 0), (0, 70), 3)
     l2 = pymunk.Segment(body, (20, 0), (30, 10), 3)
-    l3 = pymunk.Segment(body, (0, 70), (210, 80), 3)
+    l3 = pymunk.Segment(body, (0, 70), (225, 80), 3)
     l5 = pymunk.Segment(body, (30, 10), (188, 0), 3)
-    l6 = pymunk.Segment(body, (225, 70), (215, 0), 3)
+    l6 = pymunk.Segment(body, (225, 80), (215, 0), 3)
 
     space.add(l1, l2, l3, l5, l6)
 
     return (l1, l2, l3, l5, l6)
 
-def add_turbine_sensor(space):
-    body = pymunk.Body()
-    body.position = (43,465)
-    # Check these coords and adjust
-    a = (-10, 0)
-    b = (10, 0)
-    radius = 4
-    shape = pymunk.Segment(body, a, b, radius)
-    shape.collision_type = turbine_rpm_collision
-    space.add(shape)
-    return shape
 
 def add_turbine_highpressure_release_valve(space):
     pass
@@ -468,7 +457,7 @@ def run_world():
     turbine = add_turbine(space)
     turbair = add_turbine(air)
 
-    turbine_sensor = add_turbine_sensor(air)
+    
 
     electricmain = add_electricmain(space)
 
@@ -601,7 +590,7 @@ def run_world():
             ticks_to_next_fire -= 1
 
             if ticks_to_next_fire <= 0 :
-                ticks_to_next_fire = FUELRATE
+                ticks_to_next_fire = PLCGetTag(PLC_FUEL_RATE) - 2
                 for burner in burners:
                     fire_shape = add_fire(air)
                     fire_shape.body.position = burner.body.position
@@ -621,6 +610,31 @@ def run_world():
 
         # Water Pump
 
+        if ( PLCGetTag( PLC_WATERPUMP_VALVE ) ):
+            ticks_to_next_water -= 1
+            if ticks_to_next_water <= 0 : 
+                ticks_to_next_water = PLCGetTag( PLC_WATERPUMP_RATE ) - 2
+                water_shape = add_water(space)
+                water_shape.body.position = watermain.body.position
+                water_shape.body.position.y -= 12
+                water_shape.body.position.x = random.randint( watermain.body.position.x - 1, watermain.body.position.x + 1 )
+                waters.append(water_shape)
+
+        water_to_remove = []
+
+        if (PLCGetTag( PLC_BOILER_WATER_VOLUME ) > len(waters) * 10 ) and (PLCGetTag(PLC_WATERPUMP_VALVE) == 0):
+            ticks_to_next_water = PLCGetTag( PLC_WATERPUMP_RATE )
+            water_shape = add_water(space)
+            water_shape.body.position = watermain.body.position
+            water_shape.body.position.y -= 180
+            water_shape.body.position.x = random.randint( watermain.body.position.x - 80, watermain.body.position.x + 80 )
+            waters.append(water_shape)
+        elif ( int(PLCGetTag( PLC_BOILER_WATER_VOLUME ) / 10 ) < len(waters) ) and (PLCGetTag(PLC_WATERPUMP_VALVE) == 0):
+            for water in waters:
+                water_to_remove.append(water)
+                break
+
+        '''    
         if PLCGetTag(PLC_WATERPUMP_VALVE) == 1:
             ticks_to_next_water -= 1
             if ticks_to_next_water <= 0 : 
@@ -632,11 +646,10 @@ def run_world():
                 water_shape.body.position.x = random.randint( watermain.body.position.x - 1, watermain.body.position.x + 1 )
                 waters.append(water_shape)
         # end - Water Pump
+        '''
 
         for water in waters:
             draw_ball( bg, water, 'blue')
-
-        water_to_remove = []
        
         for water in water_to_remove:
         	space.remove(water, water.body)
@@ -654,13 +667,15 @@ def run_world():
         draw_polygon(bg, watermain)
         draw_lines(bg, turbine)
         draw_polygon(bg, electricmain)
-        draw_line(bg, turbine_sensor, 'gray')
+        
+
 
         for burner in burners:
             draw_polygon(bg, burner, 'black')
 
-        # Used to display number of water inside Boiler
-        text = "Help"
+        # Used to display number of water 
+        #inside Boiler
+        text = "Water: " + str( len(waters))
         textsurface = myfont.render( text, False, (0,0,0))
 
 
