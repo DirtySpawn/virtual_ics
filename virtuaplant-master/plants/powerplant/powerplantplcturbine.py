@@ -132,6 +132,11 @@ class HMIWindow(Gtk.Window):
         grid.attach(turbine_plc_rpm_value, 5, elementIndex, 1, 1)
         elementIndex += 1
         
+        error = Gtk.Label()
+        grid.attach(error, 1, elementIndex, 10, 2)
+        self.error = error
+
+
         # Attach Value Labels
         self.turbine_plc_online_value = turbine_plc_online_value
         self.turbine_plc_rpm_value = turbine_plc_rpm_value
@@ -166,7 +171,8 @@ class HMIWindow(Gtk.Window):
             
             self.turbine_plc_online_value.set_markup("<span weight='bold' foreground='green'>ON</span>")
             
-
+            self.error.set_markup("<span weight='bold' foreground='green'>" + str(regs) + "</span>")
+            
 
             STEAMRATE = [ 3, 2, 1, 0 ]
 

@@ -55,6 +55,9 @@ PLC_BOILER_WATER_VOLUME = 0x07
 PLC_BOILER_WATER_VOLUME_LOW = 0x08
 PLC_BOILER_WATER_VOLUME_HIGH = 0X09
 
+PLC_BOILER_NEED_WATER = 0x13
+PLC_BOILER_STOP_WATER = 0x14
+
 # CONDENSER
 PLC_CONDENSER_VALVE = 0x0a
 PLC_CONDENSER_WATER_VOLUME = 0x0b
@@ -62,13 +65,15 @@ PLC_CONDENSER_WATER_VOLUME = 0x0b
 # TURBINE
 PLC_TURBINE_PRESSURE_HIGH = 0x0c
 PLC_TURBINE_PRESSURE_LOW = 0x0d
+PLC_TURBINE_RPMs = 0x11
 
 # GENERATOR
-PLC_GENERATOR = 0x0e
+PLC_GENERATOR_STATUS = 0x0e
 PLC_GENERATOR_OUTPUT = 0x0f
 
 # PYLON
-PLC_PYLON = 0x10
+PLC_PYLON_STATUS = 0x10
+PLC_PYLON_POWER = 0x12
 
 # *************************************************
 
@@ -142,7 +147,7 @@ class HMIWindow(Gtk.Window):
         self.condenser_plc_valve_value = condenser_plc_valve_value
         self.condenser_plc_water_volume_value = condenser_plc_water_volume_value
 
-        
+        self.modbusClient.write_register(PLC_CONDENSER_VALVE, 1)
         
         # Set default label values
         self.resetLabels()
