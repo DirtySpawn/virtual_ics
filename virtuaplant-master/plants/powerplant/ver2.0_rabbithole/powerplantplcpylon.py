@@ -38,52 +38,7 @@ if len(sys.argv)==1:
 args = parser.parse_args()
 
 MODBUS_SLEEP=1
-
-# ******************* PLCs ************************
-# WATER PUMP
-PLC_WATERPUMP_VALVE = 0x01
-PLC_WATERPUMP_RATE = 0x02
-
-# FUEL
-PLC_FUEL_VALVE = 0x03
-PLC_FUEL_RATE = 0x04
-
-# BOILER
-PLC_BOILER = 0x05
-PLC_BOILER_TEMP = 0x06
-PLC_BOILER_WATER_VOLUME = 0x07
-PLC_BOILER_WATER_VOLUME_LOW = 0x08
-PLC_BOILER_WATER_VOLUME_HIGH = 0X09
-
-PLC_BOILER_NEED_WATER = 0x13
-PLC_BOILER_STOP_WATER = 0x14
-
-# CONDENSER
-PLC_CONDENSER_VALVE = 0x0a
-PLC_CONDENSER_WATER_VOLUME = 0x0b
-
-# TURBINE
-PLC_TURBINE_PRESSURE_HIGH = 0x0c
-PLC_TURBINE_PRESSURE_LOW = 0x0d
-PLC_TURBINE_RPMs = 0x11
-
-# GENERATOR
-PLC_GENERATOR_STATUS = 0x0e
-PLC_GENERATOR_OUTPUT = 0x0f
-
-# PYLON
-PLC_PYLON_STATUS = 0x10
-PLC_PYLON_POWER = 0x12
-
-# *************************************************
-
-
-STEAMRATE = [ 3, 2, 1, 0 ]
-RPMS = [50000, 30000, 10000, 0 ]
-
-FUEL_RATE = [ 'MAX', 'HIGH', 'MED', 'LOW' ] 
-
-# *************************************************
+PLC_PYLON = 0x0d
 
 class HMIWindow(Gtk.Window):
     
@@ -93,12 +48,13 @@ class HMIWindow(Gtk.Window):
 
     # Default values for the HMI labels
     def resetLabels(self):
-        self.turbine_plc_online_value.set_markup("<span weight='bold' foreground='red'>OFF</span>")
+        self.pylon_plc_online_value.set_markup("<span weight='bold' foreground='red'>OFF</span>")
+        self.pylon_plc_operational_value .set_markup("<span weight='bold' foreground='black'>N/A</span>")
         
         
     def __init__(self):
         # Window title
-        Gtk.Window.__init__(self, title="Turbine PLC")
+        Gtk.Window.__init__(self, title="PYLON PLC")
         self.set_border_width(100)
         
         #Create modbus connection
@@ -113,37 +69,45 @@ class HMIWindow(Gtk.Window):
 
         # Main title label
         label = Gtk.Label()
-        label.set_markup("<span weight='bold' size='xx-large' color='black'>PLC : Turbine</span>")
+        label.set_markup("<span weight='bold' size='xx-large' color='black'>PLC : PYLON</span>")
         grid.attach(label, 4, elementIndex, 4, 1)
         elementIndex += 1
 
         # Crude Oil Feed Pump
-        turbine_plc_online_label = Gtk.Label("Online: ")
-        turbine_plc_online_value = Gtk.Label()
+        pylon_plc_online_label = Gtk.Label("Online: ")
+        pylon_plc_online_value = Gtk.Label()
 
-        grid.attach(turbine_plc_online_label, 4, elementIndex, 1, 1)
-        grid.attach(turbine_plc_online_value, 5, elementIndex, 1, 1)
+        pylon_plc_operational_label = Gtk.Label("Operational: ")
+        pylon_plc_operational_value = Gtk.Label()
+        pylon_plc_operational_on_button = Gtk.Button("ON")
+        pylon_plc_operational_off_button = Gtk.Button("OFF")   
+
+        pylon_plc_operational_on_button.connect("clicked", self.setPylonOperational, 1)
+        pylon_plc_operational_off_button.connect("clicked", self.setPylonOperational, 0)
+
+        grid.attach(pylon_plc_online_label, 4, elementIndex, 1, 1)
+        grid.attach(pylon_plc_online_value, 5, elementIndex, 1, 1)
         elementIndex += 1
         
-        turbine_plc_rpm_label = Gtk.Label("RPMS: ")
-        turbine_plc_rpm_value = Gtk.Label()
-
-        grid.attach(turbine_plc_rpm_label, 4, elementIndex, 1, 1)
-        grid.attach(turbine_plc_rpm_value, 5, elementIndex, 1, 1)
+        grid.attach(pylon_plc_operational_label, 4, elementIndex, 1, 1)
+        grid.attach(pylon_plc_operational_value, 5, elementIndex, 1, 1)
+        grid.attach(pylon_plc_operational_on_button, 6, elementIndex, 1, 1)
+        grid.attach(pylon_plc_operational_off_button, 7, elementIndex, 1, 1)
         elementIndex += 1
+
         
         # Attach Value Labels
-        self.turbine_plc_online_value = turbine_plc_online_value
-        self.turbine_plc_rpm_value = turbine_plc_rpm_value
+        self.pylon_plc_online_value = pylon_plc_online_value
+        self.pylon_plc_operational_value = pylon_plc_operational_value
 
         # Set default label values
         self.resetLabels()
         GObject.timeout_add_seconds(MODBUS_SLEEP, self.update_status)
 
     # Control the feed pump register values
-    def setTurbineOperational(self, widget, data=None):
+    def setPylonOperational(self, widget, data=None):
         try:
-            self.modbusClient.write_register(PLC_TURBINE, data)
+            self.modbusClient.write_register(PLC_PYLON, data)
         except:
             pass
 
@@ -151,7 +115,7 @@ class HMIWindow(Gtk.Window):
 
         try:
             # Store the registers of the PLC in "rr"
-            rr = self.modbusClient.read_holding_registers(1,24)
+            rr = self.modbusClient.read_holding_registers(1,16)
             regs = []
 
             # If we get back a blank response, something happened connecting to the PLC
@@ -164,21 +128,19 @@ class HMIWindow(Gtk.Window):
             if not regs or len(regs) < 16:
                 raise ConnectionException
             
-            self.turbine_plc_online_value.set_markup("<span weight='bold' foreground='green'>ON</span>")
+            self.pylon_plc_online_value.set_markup("<span weight='bold' foreground='green'>ON</span>")
             
-
-
-            STEAMRATE = [ 3, 2, 1, 0 ]
-
-            FUEL_RATE = [ 'MAX', 'HIGH', 'MED', 'LOW' ] 
-            3, 4, 5, 6
-            if regs[ PLC_FUEL_VALVE - 1] == 1:
-                if regs[ PLC_BOILER_TEMP - 1 ] > 99:
-                    if regs[ PLC_BOILER_WATER_VOLUME - 1] > 0:
-                        rate = regs[PLC_FUEL_RATE - 1]
-                        #index = FUEL_RATE.index( rate )
-                        self.turbine_plc_rpm_value.set_markup("<span weight='bold' foreground='green'>" + str( RPMS[ rate - 3] )  + "</span>")
-                        self.modbusClient.write_register( PLC_TURBINE_RPMs, STEAMRATE[ rate - 3 ] )
+            # If the feed pump "0x01" is set to 1, then the pump is running
+            '''
+            if regs[0] == 1:
+                self.fuel_plc_operational_value.set_markup("<span weight='bold' foreground='green'>ON</span>")
+            else:
+                self.fuel_plc_operational_value.set_markup("<span weight='bold' foreground='red'>OFF</span>")
+            '''
+            if regs[12] == 0:
+                self.pylon_plc_operational_value .set_markup("<span weight='bold' foreground='red'>OFF</span>")
+            elif regs[12] == 1:
+                self.pylon_plc_operational_value.set_markup("<span weight='bold' foreground='green'>ON</span>")
             
 
         except ConnectionException:

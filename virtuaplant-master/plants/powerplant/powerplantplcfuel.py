@@ -55,6 +55,9 @@ PLC_BOILER_WATER_VOLUME = 0x07
 PLC_BOILER_WATER_VOLUME_LOW = 0x08
 PLC_BOILER_WATER_VOLUME_HIGH = 0X09
 
+PLC_BOILER_NEED_WATER = 0x13
+PLC_BOILER_STOP_WATER = 0x14
+
 # CONDENSER
 PLC_CONDENSER_VALVE = 0x0a
 PLC_CONDENSER_WATER_VOLUME = 0x0b
@@ -62,16 +65,23 @@ PLC_CONDENSER_WATER_VOLUME = 0x0b
 # TURBINE
 PLC_TURBINE_PRESSURE_HIGH = 0x0c
 PLC_TURBINE_PRESSURE_LOW = 0x0d
+PLC_TURBINE_RPMs = 0x11
 
 # GENERATOR
-PLC_GENERATOR = 0x0e
+PLC_GENERATOR_STATUS = 0x0e
 PLC_GENERATOR_OUTPUT = 0x0f
 
 # PYLON
-PLC_PYLON = 0x10
+PLC_PYLON_STATUS = 0x10
+PLC_PYLON_POWER = 0x12
 
 # *************************************************
 
+
+
+# *************************************************
+
+FUEL_RATE = [ 'MAX', 'HIGH', 'MED', 'LOW' ] 
 
 class HMIWindow(Gtk.Window):
     
@@ -177,10 +187,10 @@ class HMIWindow(Gtk.Window):
             self.fuel_plc_online_value.set_markup("<span weight='bold' foreground='green'>ON</span>")
             
             if regs[PLC_FUEL_RATE - 1] > 1:
-                rate = int( regs[PLC_FUEL_RATE - 1]) - 2
-                rate *= -5
-                rate += 105
-                self.fuel_plc_rate_value.set_markup("<span weight='bold' foreground='green'>" + str(rate) + "%</span>")
+                rate = int( regs[PLC_FUEL_RATE - 1]) - 3 
+                
+                self.fuel_plc_rate_value.set_markup("<span weight='bold' foreground='green'>" + str(FUEL_RATE[rate]) + "</span>")
+
 
             if regs[PLC_FUEL_VALVE - 1] == 0:
                 self.fuel_plc_valve_value.set_markup("<span weight='bold' foreground='red'>OFF</span>")

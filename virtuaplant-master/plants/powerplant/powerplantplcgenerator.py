@@ -39,6 +39,7 @@ args = parser.parse_args()
 
 MODBUS_SLEEP=1
 
+
 # ******************* PLCs ************************
 # WATER PUMP
 PLC_WATERPUMP_VALVE = 0x01
@@ -78,7 +79,7 @@ PLC_PYLON_POWER = 0x12
 # *************************************************
 
 
-
+# *************************************************
 class HMIWindow(Gtk.Window):
 
     def initModbus(self):
@@ -87,13 +88,19 @@ class HMIWindow(Gtk.Window):
 
     # Default values for the HMI labels
     def resetLabels(self):
-        self.pylon_plc_online_value.set_markup("<span weight='bold' foreground='red'>OFF</span>")
-        self.pylon_plc_status_value .set_markup("<span weight='bold' foreground='black'>N/A</span>")
+        self.generator_plc_online_value.set_markup("<span weight='bold' foreground='red'>OFF</span>")
+        self.generator_plc_status_value.set_markup("<span weight='bold' foreground='black'>N/A</span>")
+        self.generator_plc_output_value.set_markup("<span weight='bold' foreground='black'>N/A</span>")
+
+        # RATES NOTES PART *****2*****
+    #    self.waterpump_plc_water_rate_value.set_markup("<span weight='bold' foreground='black'>N/A</span>")
+    #    self.waterpump_plc_valve_value.set_markup("<span weight='bold' foreground='black'>N/A</span>")
+
 
 
     def __init__(self):
         # Window title
-        Gtk.Window.__init__(self, title="PYLON PLC")
+        Gtk.Window.__init__(self, title="GENERATOR PLC")
         self.set_border_width(100)
 
         #Create modbus connection
@@ -108,59 +115,65 @@ class HMIWindow(Gtk.Window):
 
         # Main title label
         label = Gtk.Label()
-        label.set_markup("<span weight='bold' size='xx-large' color='black'>PLC : PYLON/POWER GAUGE</span>")
+        label.set_markup("<span weight='bold' size='xx-large' color='black'>PLC : GENERATOR</span>")
         grid.attach(label, 4, elementIndex, 4, 1)
         elementIndex += 1
 
-        # PYLON
+        # GENERATOR
         # Connected to World / HMI
-        pylon_plc_online_label = Gtk.Label("Online: ")
-        pylon_plc_online_value = Gtk.Label()
+        generator_plc_online_label = Gtk.Label("Online: ")
+        generator_plc_online_value = Gtk.Label()
 
         # Valve / Button to Turn ON/OFF
-        pylon_plc_status_label = Gtk.Label("Pylon Status: ")
-        pylon_plc_status_value = Gtk.Label()
-        pylon_plc_status_on_button = Gtk.Button("ON")
-        pylon_plc_status_off_button = Gtk.Button("OFF")
-        pylon_plc_status_on_button.connect("clicked", self.setPylonStatus, 1)
-        pylon_plc_status_off_button.connect("clicked", self.setPylonStatus, 0)
+        generator_plc_status_label = Gtk.Label("Generator Status: ")
+        generator_plc_status_value = Gtk.Label()
+        generator_plc_status_on_button = Gtk.Button("ON")
+        generator_plc_status_off_button = Gtk.Button("OFF")
+        generator_plc_status_on_button.connect("clicked", self.setGeneratorStatus, 1)
+        generator_plc_status_off_button.connect("clicked", self.setGeneratorStatus, 0)
 
-        #pylon power gauge
-        pylon_plc_power_label = Gtk.Label("Power Level: ")
-        pylon_plc_power_value = Gtk.Label()
+        #GENERATOR OUTPUT
+        generator_plc_output_label = Gtk.Label("Output: ")
+        generator_plc_output_value = Gtk.Label()
 
-        # pylon
+        # GENERATOR
         # Connected to World / HMI *****PART 2
-        grid.attach(pylon_plc_online_label, 4, elementIndex, 1, 1)
-        grid.attach(pylon_plc_online_value, 5, elementIndex, 1, 1)
+        grid.attach(generator_plc_online_label, 4, elementIndex, 1, 1)
+        grid.attach(generator_plc_online_value, 5, elementIndex, 1, 1)
         elementIndex += 1
 
         # Valve / Button to Turn ON/OFF *****PART 2
-        grid.attach(pylon_plc_status_label, 4, elementIndex, 1, 1)
-        grid.attach(pylon_plc_status_value, 5, elementIndex, 1, 1)
-        grid.attach(pylon_plc_status_on_button, 6, elementIndex, 1, 1)
-        grid.attach(pylon_plc_status_off_button, 7, elementIndex, 1, 1)
+        grid.attach(generator_plc_status_label, 4, elementIndex, 1, 1)
+        grid.attach(generator_plc_status_value, 5, elementIndex, 1, 1)
+        grid.attach(generator_plc_status_on_button, 6, elementIndex, 1, 1)
+        grid.attach(generator_plc_status_off_button, 7, elementIndex, 1, 1)
         elementIndex += 1
 
-        grid.attach(pylon_plc_power_label, 4, elementIndex, 1, 1)
-        grid.attach(pylon_plc_power_value, 5, elementIndex, 1, 1)
+        grid.attach(generator_plc_output_label, 4, elementIndex, 1, 1)
+        grid.attach(generator_plc_output_value, 5, elementIndex, 1, 1)
         elementIndex += 1
 
         ## attach  # column number
         # Attach Value Labels
-        self.pylon_plc_online_value = pylon_plc_online_value
-        self.pylon_plc_status_value = pylon_plc_status_value
-        self.pylon_plc_power_value = pylon_plc_power_value
+        self.generator_plc_online_value = generator_plc_online_value
+        self.generator_plc_status_value = generator_plc_status_value
+        self.generator_plc_output_value = generator_plc_output_value
+
+        # RATE NOTES
+#        self.waterpump_plc_water_rate_value = waterpump_plc_water_rate_value
+#        self.waterpump_plc_valve_value = waterpump_plc_valve_value
+
+        # right side is var from above
 
 
         # Set default label values
         self.resetLabels()
         GObject.timeout_add_seconds(MODBUS_SLEEP, self.update_status)
 
-    # Control the feed pump register values
-    def setPylonStatus(self, widget, data=None):
+    # Control the Water Pump Register Values
+    def setGeneratorStatus(self, widget, data=None):
         try:
-            self.modbusClient.write_register(PLC_PYLON_STATUS, data)
+            self.modbusClient.write_register(PLC_GENERATOR_STATUS, data)
         except:
             pass
 
@@ -181,39 +194,24 @@ class HMIWindow(Gtk.Window):
             if not regs or len(regs) < 16:
                 raise ConnectionException
 
-            self.pylon_plc_online_value.set_markup("<span weight='bold' foreground='green'>ON</span>")
 
-        # Change to match
-# exmaple follows
+            self.generator_plc_online_value.set_markup("<span weight='bold' foreground='green'>ON</span>")
 
-            if regs[ PLC_GENERATOR_STATUS - 1 ] == 0:
-                if regs[PLC_PYLON_STATUS - 1] == 0:
-                    self.pylon_plc_status_value.set_markup("<span weight='bold' foreground='red'>OFF</span>")
-                    self.pylon_plc_power_value.set_markup("<span weight='bold' foreground='red'>No Power</span>")
+            
+            if regs[PLC_GENERATOR_STATUS - 1] == 0:
+                self.generator_plc_status_value.set_markup("<span weight='bold' foreground='red'>OFF</span>")
+                self.generator_plc_output_value.set_markup("<span weight='bold' foreground='red'>No Output</span>")
+            
             if regs[ PLC_GENERATOR_STATUS - 1 ] == 1:
-                if regs[ PLC_PYLON_STATUS - 1 ] == 1:
-                    self.pylon_plc_status_value.set_markup("<span weight='bold' foreground='green'>ON</span>")
-                    if regs[PLC_TURBINE_RPMs - 1] == 0:
-                        self.pylon_plc_power_value.set_markup("<span weight='bold' foreground='red'>No Output</span>")
-                    if regs[PLC_TURBINE_RPMs - 1] == 1:
-                        self.pylon_plc_power_value.set_markup("<span weight='bold' foreground='gold'>Low Power</span>")
-                    if regs[PLC_TURBINE_RPMs - 1] == 2:
-                        self.pylon_plc_power_value.set_markup("<span weight='bold' foreground='green'>Normal Power</span>")
-                    if regs[PLC_TURBINE_RPMs - 1] == 3:
-                        self.pylon_plc_power_value.set_markup("<span weight='bold' foreground='crimson'>DANGER</span>")
-
-
-            # If the feed pump "0x01" is set to 1, then the pump is running
-            '''
-            if regs[0] == 1:
-                self.fuel_plc_operational_value.set_markup("<span weight='bold' foreground='green'>ON</span>")
-            else:
-                self.fuel_plc_operational_value.set_markup("<span weight='bold' foreground='red'>OFF</span>")
-            if regs[12] == 0:
-                self.pylon_plc_operational_value .set_markup("<span weight='bold' foreground='red'>OFF</span>")
-            elif regs[12] == 1:
-                self.pylon_plc_operational_value.set_markup("<span weight='bold' foreground='green'>ON</span>")
-            '''
+                self.generator_plc_status_value.set_markup("<span weight='bold' foreground='green'>ON</span>")
+                if regs[PLC_TURBINE_RPMs - 1] == 0:
+                    self.generator_plc_output_value.set_markup("<span weight='bold' foreground='red'>No Output</span>")
+                if regs[PLC_TURBINE_RPMs - 1] == 1:
+                    self.generator_plc_output_value.set_markup("<span weight='bold' foreground='gold'>1,000</span>")
+                if regs[PLC_TURBINE_RPMs - 1] == 2:
+                    self.generator_plc_output_value.set_markup("<span weight='bold' foreground='green'>3,000</span>")
+                if regs[PLC_TURBINE_RPMs - 1] == 3:
+                    self.generator_plc_output_value.set_markup("<span weight='bold' foreground='crimson'>5,000+ DANGER</span>")
 
         except ConnectionException:
             if not self.modbusClient.connect():

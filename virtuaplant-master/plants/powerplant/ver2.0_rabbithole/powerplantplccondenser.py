@@ -55,9 +55,6 @@ PLC_BOILER_WATER_VOLUME = 0x07
 PLC_BOILER_WATER_VOLUME_LOW = 0x08
 PLC_BOILER_WATER_VOLUME_HIGH = 0X09
 
-PLC_BOILER_NEED_WATER = 0x13
-PLC_BOILER_STOP_WATER = 0x14
-
 # CONDENSER
 PLC_CONDENSER_VALVE = 0x0a
 PLC_CONDENSER_WATER_VOLUME = 0x0b
@@ -65,25 +62,16 @@ PLC_CONDENSER_WATER_VOLUME = 0x0b
 # TURBINE
 PLC_TURBINE_PRESSURE_HIGH = 0x0c
 PLC_TURBINE_PRESSURE_LOW = 0x0d
-PLC_TURBINE_RPMs = 0x11
 
 # GENERATOR
-PLC_GENERATOR_STATUS = 0x0e
+PLC_GENERATOR = 0x0e
 PLC_GENERATOR_OUTPUT = 0x0f
 
 # PYLON
-PLC_PYLON_STATUS = 0x10
-PLC_PYLON_POWER = 0x12
+PLC_PYLON = 0x10
 
 # *************************************************
 
-
-STEAMRATE = [ 3, 2, 1, 0 ]
-RPMS = [50000, 30000, 10000, 0 ]
-
-FUEL_RATE = [ 'MAX', 'HIGH', 'MED', 'LOW' ] 
-
-# *************************************************
 
 class HMIWindow(Gtk.Window):
     
@@ -93,12 +81,14 @@ class HMIWindow(Gtk.Window):
 
     # Default values for the HMI labels
     def resetLabels(self):
-        self.turbine_plc_online_value.set_markup("<span weight='bold' foreground='red'>OFF</span>")
-        
-        
+        self.condenser_plc_online_value.set_markup("<span weight='bold' foreground='red'>OFF</span>")
+        self.condenser_plc_valve_value.set_markup("<span weight='bold' foreground='red'>CLOSED</span>")
+        self.condenser_plc_water_volume_value.set_markup("<span weight='bold' foreground='black'>0</span>")
+
+    
     def __init__(self):
         # Window title
-        Gtk.Window.__init__(self, title="Turbine PLC")
+        Gtk.Window.__init__(self, title="Condenser PLC")
         self.set_border_width(100)
         
         #Create modbus connection
@@ -113,45 +103,64 @@ class HMIWindow(Gtk.Window):
 
         # Main title label
         label = Gtk.Label()
-        label.set_markup("<span weight='bold' size='xx-large' color='black'>PLC : Turbine</span>")
+        label.set_markup("<span weight='bold' size='xx-large' color='black'>PLC : CONDENSER</span>")
         grid.attach(label, 4, elementIndex, 4, 1)
         elementIndex += 1
 
-        # Crude Oil Feed Pump
-        turbine_plc_online_label = Gtk.Label("Online: ")
-        turbine_plc_online_value = Gtk.Label()
+        # Condenser Online
+        condenser_plc_online_label = Gtk.Label("Online: ")
+        condenser_plc_online_value = Gtk.Label()
 
-        grid.attach(turbine_plc_online_label, 4, elementIndex, 1, 1)
-        grid.attach(turbine_plc_online_value, 5, elementIndex, 1, 1)
-        elementIndex += 1
-        
-        turbine_plc_rpm_label = Gtk.Label("RPMS: ")
-        turbine_plc_rpm_value = Gtk.Label()
+        # Condenser Valve
+        condenser_plc_valve_label = Gtk.Label("Water Valve: ")
+        condenser_plc_valve_value = Gtk.Label()
+        condenser_plc_water_valve_open_button = Gtk.Button("OPEN")
+        condenser_plc_water_valve_close_button = Gtk.Button("CLOSE")
+        condenser_plc_water_valve_open_button.connect("clicked", self.setCondenserValve, 1)
+        condenser_plc_water_valve_close_button.connect("clicked", self.setCondenserValve, 0)
 
-        grid.attach(turbine_plc_rpm_label, 4, elementIndex, 1, 1)
-        grid.attach(turbine_plc_rpm_value, 5, elementIndex, 1, 1)
+        # Condenser - Holds amount of water in condenser
+        condenser_plc_water_volume_label = Gtk.Label("Volume: ")
+        condenser_plc_water_volume_value = Gtk.Label()
+
+        grid.attach(condenser_plc_online_label, 4, elementIndex, 1, 1)
+        grid.attach(condenser_plc_online_value, 5, elementIndex, 1, 1)
         elementIndex += 1
-        
+
+        grid.attach(condenser_plc_valve_label, 4, elementIndex, 1, 1)
+        grid.attach(condenser_plc_valve_value, 5, elementIndex, 1, 1)
+        grid.attach(condenser_plc_water_valve_open_button, 6, elementIndex, 1, 1)
+        grid.attach(condenser_plc_water_valve_close_button, 7, elementIndex, 1, 1)
+        elementIndex += 1
+
+        grid.attach(condenser_plc_water_volume_label, 4, elementIndex, 1, 1)
+        grid.attach(condenser_plc_water_volume_value, 5, elementIndex, 1, 1)
+        elementIndex += 1
+
         # Attach Value Labels
-        self.turbine_plc_online_value = turbine_plc_online_value
-        self.turbine_plc_rpm_value = turbine_plc_rpm_value
+        self.condenser_plc_online_value = condenser_plc_online_value
+        self.condenser_plc_valve_value = condenser_plc_valve_value
+        self.condenser_plc_water_volume_value = condenser_plc_water_volume_value
 
+        
+        
         # Set default label values
         self.resetLabels()
         GObject.timeout_add_seconds(MODBUS_SLEEP, self.update_status)
 
     # Control the feed pump register values
-    def setTurbineOperational(self, widget, data=None):
+    def setCondenserValve(self, widget, data=None):
         try:
-            self.modbusClient.write_register(PLC_TURBINE, data)
+            self.modbusClient.write_register(PLC_CONDENSER_VALVE, data)
         except:
             pass
 
+        
     def update_status(self):
 
         try:
             # Store the registers of the PLC in "rr"
-            rr = self.modbusClient.read_holding_registers(1,24)
+            rr = self.modbusClient.read_holding_registers(1,16)
             regs = []
 
             # If we get back a blank response, something happened connecting to the PLC
@@ -164,22 +173,17 @@ class HMIWindow(Gtk.Window):
             if not regs or len(regs) < 16:
                 raise ConnectionException
             
-            self.turbine_plc_online_value.set_markup("<span weight='bold' foreground='green'>ON</span>")
+            self.condenser_plc_online_value.set_markup("<span weight='bold' foreground='green'>ON</span>")
+            self.condenser_plc_water_volume_value.set_markup("<span weight='bold' foreground='black'>" + str(regs[PLC_CONDENSER_WATER_VOLUME - 1])  + "</span>")
+
+            # Valve Open
+            if regs[PLC_CONDENSER_VALVE - 1] == 1:
+                self.condenser_plc_valve_value.set_markup("<span weight='bold' foreground='green'>OPEN</span>")
+            elif regs[PLC_CONDENSER_VALVE - 1] == 0:
+                self.condenser_plc_valve_value.set_markup("<span weight='bold' foreground='red'>CLOSED</span>")
+
             
 
-
-            STEAMRATE = [ 3, 2, 1, 0 ]
-
-            FUEL_RATE = [ 'MAX', 'HIGH', 'MED', 'LOW' ] 
-            3, 4, 5, 6
-            if regs[ PLC_FUEL_VALVE - 1] == 1:
-                if regs[ PLC_BOILER_TEMP - 1 ] > 99:
-                    if regs[ PLC_BOILER_WATER_VOLUME - 1] > 0:
-                        rate = regs[PLC_FUEL_RATE - 1]
-                        #index = FUEL_RATE.index( rate )
-                        self.turbine_plc_rpm_value.set_markup("<span weight='bold' foreground='green'>" + str( RPMS[ rate - 3] )  + "</span>")
-                        self.modbusClient.write_register( PLC_TURBINE_RPMs, STEAMRATE[ rate - 3 ] )
-            
 
         except ConnectionException:
             if not self.modbusClient.connect():
@@ -189,6 +193,11 @@ class HMIWindow(Gtk.Window):
         finally:
             return True
 
+    def setCondenserValve(self, widget, data=None):
+        try:
+            self.modbusClient.write_register(PLC_CONDENSER_VALVE, data)
+        except:
+            pass
 
 
 def app_main():

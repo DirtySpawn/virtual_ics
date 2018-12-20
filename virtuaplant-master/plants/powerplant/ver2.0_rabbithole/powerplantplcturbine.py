@@ -55,9 +55,6 @@ PLC_BOILER_WATER_VOLUME = 0x07
 PLC_BOILER_WATER_VOLUME_LOW = 0x08
 PLC_BOILER_WATER_VOLUME_HIGH = 0X09
 
-PLC_BOILER_NEED_WATER = 0x13
-PLC_BOILER_STOP_WATER = 0x14
-
 # CONDENSER
 PLC_CONDENSER_VALVE = 0x0a
 PLC_CONDENSER_WATER_VOLUME = 0x0b
@@ -65,23 +62,13 @@ PLC_CONDENSER_WATER_VOLUME = 0x0b
 # TURBINE
 PLC_TURBINE_PRESSURE_HIGH = 0x0c
 PLC_TURBINE_PRESSURE_LOW = 0x0d
-PLC_TURBINE_RPMs = 0x11
 
 # GENERATOR
-PLC_GENERATOR_STATUS = 0x0e
+PLC_GENERATOR = 0x0e
 PLC_GENERATOR_OUTPUT = 0x0f
 
 # PYLON
-PLC_PYLON_STATUS = 0x10
-PLC_PYLON_POWER = 0x12
-
-# *************************************************
-
-
-STEAMRATE = [ 3, 2, 1, 0 ]
-RPMS = [50000, 30000, 10000, 0 ]
-
-FUEL_RATE = [ 'MAX', 'HIGH', 'MED', 'LOW' ] 
+PLC_PYLON = 0x10
 
 # *************************************************
 
@@ -125,16 +112,10 @@ class HMIWindow(Gtk.Window):
         grid.attach(turbine_plc_online_value, 5, elementIndex, 1, 1)
         elementIndex += 1
         
-        turbine_plc_rpm_label = Gtk.Label("RPMS: ")
-        turbine_plc_rpm_value = Gtk.Label()
 
-        grid.attach(turbine_plc_rpm_label, 4, elementIndex, 1, 1)
-        grid.attach(turbine_plc_rpm_value, 5, elementIndex, 1, 1)
-        elementIndex += 1
         
         # Attach Value Labels
         self.turbine_plc_online_value = turbine_plc_online_value
-        self.turbine_plc_rpm_value = turbine_plc_rpm_value
 
         # Set default label values
         self.resetLabels()
@@ -151,7 +132,7 @@ class HMIWindow(Gtk.Window):
 
         try:
             # Store the registers of the PLC in "rr"
-            rr = self.modbusClient.read_holding_registers(1,24)
+            rr = self.modbusClient.read_holding_registers(1,16)
             regs = []
 
             # If we get back a blank response, something happened connecting to the PLC
@@ -166,19 +147,6 @@ class HMIWindow(Gtk.Window):
             
             self.turbine_plc_online_value.set_markup("<span weight='bold' foreground='green'>ON</span>")
             
-
-
-            STEAMRATE = [ 3, 2, 1, 0 ]
-
-            FUEL_RATE = [ 'MAX', 'HIGH', 'MED', 'LOW' ] 
-            3, 4, 5, 6
-            if regs[ PLC_FUEL_VALVE - 1] == 1:
-                if regs[ PLC_BOILER_TEMP - 1 ] > 99:
-                    if regs[ PLC_BOILER_WATER_VOLUME - 1] > 0:
-                        rate = regs[PLC_FUEL_RATE - 1]
-                        #index = FUEL_RATE.index( rate )
-                        self.turbine_plc_rpm_value.set_markup("<span weight='bold' foreground='green'>" + str( RPMS[ rate - 3] )  + "</span>")
-                        self.modbusClient.write_register( PLC_TURBINE_RPMs, STEAMRATE[ rate - 3 ] )
             
 
         except ConnectionException:
