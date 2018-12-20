@@ -60,6 +60,7 @@ logging.basicConfig()
 log = logging.getLogger()
 log.setLevel(logging.INFO)
 
+
 # Display settings
 SCREEN_WIDTH = 728 #580
 SCREEN_HEIGHT = 546 #460
@@ -113,7 +114,6 @@ PLC_PYLON_POWER = 0x12
 ball_collision = 0x5
 condenser_outlet_valve_collision = 0x6
 highpressure_outlet_valve_collision = 0x6
-turbine_rpm_collision = 0x7
 
 # Functions to set PLC Values
 def PLCSetTag(addr, value):
@@ -357,7 +357,6 @@ def add_turbine(space):
 
     return (l1, l2, l3, l5, l6)
 
-
 def add_turbine_highpressure_release_valve(space):
     pass
 
@@ -409,31 +408,10 @@ def valve_open(space, arbiter, *args, **kwargs):
 def valve_closed(space, arbiter, *args, **kwargs):
     return True
 
-def turbine_rpm(space, arbiter, *args, **kwargs):
-    global RPM 
-    RPM += 5
-    return False
-
-
-def boiling_from_fuel(amount, heatenergy):
-    # Q = mc 
-    # Q = Heat    m = Mass   c = Specific Heat Capacity  DT = Change in temp: Tf - To (final - original)
-    # with Math.  Tf = Q / mc  + To
-    q = heatenergy
-    m = amount * 20 # 1 ball is 20L - 20kg
-    c = 2260  # J / kg * C - to boil and break bonds in water to create steam
-    heatneeded = m * c
-
-    #1100 balls need 83,720,000 to boil
-    #400 balls needs 18,080,000
-    # 1,000,000 - 100,000,000 for Heat Energy
-    return heatneeded
-
-
 def run_world():
     pygame.init()
     pygame.font.init()
-    myfont = pygame.font.SysFont('Comic Sans MS', 30 )
+    myfont = pygame.font.SysFont('Comic Sans MS', 30 ) # font for on screen error handling
 
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     pygame.display.set_caption("Power Plant")
@@ -446,8 +424,10 @@ def run_world():
     space = pymunk.Space() #2
     space.gravity = (0.0, -900.0)
 
+    # Second space for gravity pointing up. For fire and steam
     air = pymunk.Space()
     air.gravity = (0.0, 900.0)
+
     # Add the objects to the game world
     boiler = add_boiler(space)
     plate = add_boiler(air)
@@ -456,25 +436,21 @@ def run_world():
     watermain = add_watermain(space)
     turbine = add_turbine(space)
     turbair = add_turbine(air)
-
-    
-
     electricmain = add_electricmain(space)
-
+    # 3 Burner objects for fire
     burner1 = add_burner(space)
     burner1.body.position = (37,134)
-
     burner2 = add_burner(space)
     burner2.body.position = (97,134)
-
     burner3 = add_burner(space)
     burner3.body.position = (160,134)
-
+    # Array to hold burners to iterate while drawing
     burners = []
     burners.append(burner1)
     burners.append(burner2)
     burners.append(burner3)
 
+    # Color for valve when  Closed / Open
     valve_color = [ 'black', 'white']
 
     # Water Flow Rate Settings
@@ -487,7 +463,7 @@ def run_world():
     ticks_to_next_fire = FUELRATE
 
 
-    # Set font settings
+    # Set font settings - On Screen Error Handling
     fontBig = pygame.font.SysFont(None, 40)
     fontMedium = pygame.font.SysFont(None, 26)
     fontSmall = pygame.font.SysFont(None, 18)
@@ -510,8 +486,6 @@ def run_world():
 
     plcWATERRATE = 5
     PLCSetTag(PLC_WATERPUMP_RATE, plcWATERRATE)
-
-    air.add_collision_handler( turbine_rpm_collision, ball_collision, begin=turbine_rpm)
 
     while running:
         # Advance the game clock
@@ -634,19 +608,6 @@ def run_world():
                 water_to_remove.append(water)
                 break
 
-        '''    
-        if PLCGetTag(PLC_WATERPUMP_VALVE) == 1:
-            ticks_to_next_water -= 1
-            if ticks_to_next_water <= 0 : 
-                ticks_to_next_water = 2
-                PLCSetTag(PLC_WATERPUMP_RATE, plcWATERRATE )
-                water_shape = add_water(space)
-                water_shape.body.position = watermain.body.position
-                water_shape.body.position.y -= 12
-                water_shape.body.position.x = random.randint( watermain.body.position.x - 1, watermain.body.position.x + 1 )
-                waters.append(water_shape)
-        # end - Water Pump
-        '''
 
         for water in waters:
             draw_ball( bg, water, 'blue')
@@ -675,7 +636,7 @@ def run_world():
 
         # Used to display number of water 
         #inside Boiler
-        text = "Water: " + str( len(waters))
+        text = "" #"Log: " + str( log )
         textsurface = myfont.render( text, False, (0,0,0))
 
 

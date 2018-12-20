@@ -86,12 +86,15 @@ GPMRATE = [ 1, 0.75, 0.50, 0.25 ]  # percentage of pump rate
 
 TEMPRATE = [ 25, 10, 5, 1 ] # how fast temp goes up
 
+WATERTOSTEAM = [10, 4, 2, 0]
 
 WATERFROMVALVETEMP = 80 # Degrees C
 
 gallontoliter = 3.78541 # 1 Gallon to Liter
 
 degree = u"\u2103"  # symbol to print
+
+
 
 class HMIWindow(Gtk.Window):
     
@@ -196,6 +199,7 @@ class HMIWindow(Gtk.Window):
         self.boiler_plc_water_volume_high_scale = boiler_plc_water_volume_high_scale
 
 
+
         # Set default label values
         self.resetLabels()
         GObject.timeout_add_seconds(MODBUS_SLEEP, self.update_status)
@@ -284,31 +288,42 @@ class HMIWindow(Gtk.Window):
             
             self.boiler_plc_water_volume_value.set_markup("<span weight='bold' foreground='black'>" + str( regs[PLC_BOILER_WATER_VOLUME - 1] ) + " liters</span>")
 
-            self.boiler_plc_water_temp_value.set_markup("<span weight='bold' foreground='black'>" + str( (regs[PLC_BOILER_TEMP - 1]) ) + degree + "</span>")
+            #self.boiler_plc_water_temp_value.set_markup("<span weight='bold' foreground='black'>" + str( (regs[PLC_BOILER_TEMP - 1]) ) + degree + "</span>")
             
-        
+            VOLUME = regs[ PLC_BOILER_WATER_VOLUME - 1 ]
             
             if regs[PLC_BOILER_WATER_VOLUME - 1] == 0:
                 self.setTemperature(0)
+            elif regs[PLC_BOILER_WATER_VOLUME - 1] > 0:
+                if regs[ PLC_BOILER_TEMP - 1] == 0:
+                    self.setTemperature(WATERFROMVALVETEMP)
 
             if regs[PLC_WATERPUMP_VALVE - 1] == 1:
                 rate = regs[PLC_WATERPUMP_RATE - 1] - 3  # should be 0, 1, 2, or 3 to select from GPMRATE
                 gpm = WATERPUMPMAXGPM * GPMRATE[ rate ]
                 gps = gpm / 60
-                vol = regs[ PLC_BOILER_WATER_VOLUME - 1] + gps
-                self.setWaterAmount(vol)
+                VOLUME = VOLUME + gps
+                self.setWaterAmount(VOLUME)
  
             # ******* TEMP change from adding water.  go off of rate to call function *********
 
 
             if regs[PLC_FUEL_VALVE - 1] == 1:
-                if regs[PLC_BOILER_WATER_VOLUME - 1] > 0:
+                if VOLUME > 0 : # regs[PLC_BOILER_WATER_VOLUME - 1] > 0:
                     rate = regs[ PLC_FUEL_RATE - 1] - 3
                     temp = regs[PLC_BOILER_TEMP - 1] + TEMPRATE[rate]
-                    if temp > 100:
+                    if temp >= 100:
                         temp = 100
+                        #vol = regs[PLC_BOILER_WATER_VOLUME - 1]
+                        VOLUME -= WATERTOSTEAM[rate]
+                        self.setWaterAmount(VOLUME)
+
                     self.setTemperature(temp)
+
+            #TICKS_TO_STEAM -= TICKS_TO_STEAM
+            self.boiler_plc_water_temp_value.set_markup("<span weight='bold' foreground='black'>" + str( regs[PLC_BOILER_TEMP - 1])  + "</span>")
             
+
             if self.boiler_plc_water_volume_low_scale.get_value() > regs[PLC_BOILER_WATER_VOLUME_HIGH - 1]:
                 self.boiler_plc_water_volume_low_scale.set_value( regs[PLC_BOILER_WATER_VOLUME_HIGH - 1])
             elif self.boiler_plc_water_volume_high_scale.get_value() < regs[PLC_BOILER_WATER_VOLUME_LOW - 1]:
@@ -318,7 +333,7 @@ class HMIWindow(Gtk.Window):
             self.boiler_plc_water_volume_low_value.set_markup("<span weight='bold' foreground='black'>" + str( regs[PLC_BOILER_WATER_VOLUME_LOW - 1] ) + "</span>")
             self.boiler_plc_water_volume_high_value.set_markup("<span weight='bold' foreground='black'>" + str( regs[PLC_BOILER_WATER_VOLUME_HIGH - 1] ) + "</span>")
             
-            '''
+            
             if regs[PLC_BOILER_WATER_VOLUME - 1] < regs[PLC_BOILER_WATER_VOLUME_LOW - 1]:
                 # request turn on pump
                 try:
@@ -336,7 +351,7 @@ class HMIWindow(Gtk.Window):
                     self.modbusClient.write_register(PLC_BOILER_STOP_WATER, 1)
                 except:
                     pass
-            '''
+            
 
         except ConnectionException:
             if not self.modbusClient.connect():
