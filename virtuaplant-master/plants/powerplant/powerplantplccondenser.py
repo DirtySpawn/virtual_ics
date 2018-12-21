@@ -181,6 +181,9 @@ class HMIWindow(Gtk.Window):
             self.condenser_plc_online_value.set_markup("<span weight='bold' foreground='green'>ON</span>")
             self.condenser_plc_water_volume_value.set_markup("<span weight='bold' foreground='black'>" + str(regs[PLC_CONDENSER_WATER_VOLUME - 1])  + "</span>")
 
+
+            
+
             # Valve Open
             if regs[PLC_CONDENSER_VALVE - 1] == 1:
                 self.condenser_plc_valve_value.set_markup("<span weight='bold' foreground='green'>OPEN</span>")

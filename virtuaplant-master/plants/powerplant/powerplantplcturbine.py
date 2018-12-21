@@ -64,7 +64,7 @@ PLC_CONDENSER_WATER_VOLUME = 0x0b
 
 # TURBINE
 PLC_TURBINE_PRESSURE_HIGH = 0x0c
-PLC_TURBINE_PRESSURE_LOW = 0x0d
+PLC_TURBINE_PRESSURE = 0x0d
 PLC_TURBINE_RPMs = 0x11
 
 # GENERATOR
@@ -81,7 +81,14 @@ PLC_PYLON_POWER = 0x12
 STEAMRATE = [ 3, 2, 1, 0 ]
 RPMS = [50000, 30000, 10000, 0 ]
 
+WATERTOSTEAMRATE = [15, 5, 1, 0]
+
 FUEL_RATE = [ 'MAX', 'HIGH', 'MED', 'LOW' ] 
+
+CONDENSERATE = 6 # seconds to condense 
+
+#HIGHPRESSUREMIN = 
+#HIGHPRESSURELIMIT = 
 
 # *************************************************
 
@@ -132,14 +139,21 @@ class HMIWindow(Gtk.Window):
         grid.attach(turbine_plc_rpm_value, 5, elementIndex, 1, 1)
         elementIndex += 1
         
-        error = Gtk.Label()
-        grid.attach(error, 1, elementIndex, 10, 2)
-        self.error = error
+        turbine_plc_pressure_label = Gtk.Label("Pressure: ")
+        turbine_plc_pressure_value = Gtk.Label()
 
+        grid.attach(turbine_plc_pressure_label, 4, elementIndex, 1, 1)
+        grid.attach(turbine_plc_pressure_value, 5, elementIndex, 1, 1)
+        elementIndex += 1
 
         # Attach Value Labels
         self.turbine_plc_online_value = turbine_plc_online_value
         self.turbine_plc_rpm_value = turbine_plc_rpm_value
+        self.turbine_plc_pressure_value = turbine_plc_pressure_value
+
+
+        self.CONDENSERATE = CONDENSERATE
+        self.ticks_to_condense = self.CONDENSERATE
 
         # Set default label values
         self.resetLabels()
@@ -171,21 +185,35 @@ class HMIWindow(Gtk.Window):
             
             self.turbine_plc_online_value.set_markup("<span weight='bold' foreground='green'>ON</span>")
             
-            self.error.set_markup("<span weight='bold' foreground='green'>" + str(regs) + "</span>")
+            self.turbine_plc_pressure_value.set_markup("<span weight='bold' foreground='green'>" + str(regs[PLC_TURBINE_PRESSURE - 1]) + "</span>")
             
-
+            '''
             STEAMRATE = [ 3, 2, 1, 0 ]
+            RPMS = [50000, 30000, 10000, 0 ]
+
+            WATERTOSTEAMRATE = [15, 5, 1, 0]
 
             FUEL_RATE = [ 'MAX', 'HIGH', 'MED', 'LOW' ] 
-            3, 4, 5, 6
-            if regs[ PLC_FUEL_VALVE - 1] == 1:
-                if regs[ PLC_BOILER_TEMP - 1 ] > 99:
-                    if regs[ PLC_BOILER_WATER_VOLUME - 1] > 0:
-                        rate = regs[PLC_FUEL_RATE - 1]
+
+            if pressure > 500 open value until < 200
+
+            CONDENSERATE = 10
+            ticks_to_condense = CONDENSERATE
+            '''
+                                #3, 4, 5, 6
+            if regs[ PLC_BOILER_WATER_VOLUME - 1] > 0:
+                if regs[ PLC_FUEL_VALVE - 1] == 1:
+                    if regs[ PLC_BOILER_TEMP - 1 ] > 99: # BOILING                    
+                        rate = regs[PLC_FUEL_RATE - 1] - 3
                         #index = FUEL_RATE.index( rate )
-                        self.turbine_plc_rpm_value.set_markup("<span weight='bold' foreground='green'>" + str( RPMS[ rate - 3] )  + "</span>")
-                        self.modbusClient.write_register( PLC_TURBINE_RPMs, STEAMRATE[ rate - 3 ] )
-            
+                        self.turbine_plc_rpm_value.set_markup("<span weight='bold' foreground='green'>" + str( RPMS[ rate ] )  + "</span>")
+                        self.modbusClient.write_register( PLC_TURBINE_RPMs, STEAMRATE[ rate ] )
+                        currentpressure = regs[PLC_TURBINE_PRESSURE - 1]
+                        change = currentpressure + WATERTOSTEAMRATE[ rate ]
+                        self.modbusClient.write_register( PLC_TURBINE_PRESSURE, change)
+
+
+
 
         except ConnectionException:
             if not self.modbusClient.connect():

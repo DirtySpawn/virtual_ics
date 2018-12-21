@@ -86,7 +86,7 @@ GPMRATE = [ 1, 0.75, 0.50, 0.25 ]  # percentage of pump rate
 
 TEMPRATE = [ 25, 10, 5, 1 ] # how fast temp goes up
 
-WATERTOSTEAM = [10, 4, 2, 0]
+WATERTOSTEAM = [15, 5, 1, 0]
 
 WATERFROMVALVETEMP = 80 # Degrees C
 
