@@ -148,7 +148,7 @@ def add_water(space):
 
 def add_steam(space):
     mass = 0.8
-    radius = 2
+    radius = 3
     inertia = pymunk.moment_for_circle(mass, 0, radius, (0, 0))
     body = pymunk.Body(mass, inertia)
     body._bodycontents.v_limit = 120
@@ -181,7 +181,7 @@ def add_fire(space):
 
 def add_energy(space):
     mass = 0.1
-    radius = 2
+    radius = 4 
     inertia = pymunk.moment_for_circle(mass, 0, radius, (0, 0))
     body = pymunk.Body(mass, inertia)
     body._bodycontents.v_limit = 120
@@ -237,77 +237,65 @@ def add_electricmain(space):
 def add_light(space):
 
     body = pymunk.Body()
-    body.position = (480, 494)
+    body.position = (478, 494)
     #y -45, 45
     #x 0, 120    
     lightminx = 1
-    lightmaxx = 119
+    lightmaxx = 121
     lightminy = -45
     lightmaxy = 45
 
-    x = random.randint( lightminx, lightmaxx )
+    i = 1
+    multiple = 20
+
+    x = random.randint( lightminx, i * multiple)
     y = random.randint( lightminy, lightmaxy )
     l1 = pymunk.Segment( body, (0,0),(x,y), 3 )
 
     xprev = x
     yprev = y
+    i += 1
 
-    x = random.randint( lightminx, lightmaxx )
+    x = random.randint( xprev, i * multiple)
     y = random.randint( lightminy, lightmaxy )
-
-    l2 = pymunk.Segment( body, (xprev, yprev), (x, y), 3)
+    l2 = pymunk.Segment( body, (xprev,yprev),(x,y), 3 )
 
     xprev = x
     yprev = y
+    i += 1
 
-    x = random.randint( lightminx, lightmaxx )
+    x = random.randint( xprev, i * multiple)
     y = random.randint( lightminy, lightmaxy )
-
-    l3 = pymunk.Segment( body, (xprev, yprev), (x, y), 3)
+    l3 = pymunk.Segment( body, (xprev,yprev),(x,y), 3 )
 
     xprev = x
     yprev = y
+    i += 1
 
-    x = random.randint( lightminx, lightmaxx )
+    x = random.randint( xprev, i * multiple)
     y = random.randint( lightminy, lightmaxy )
-
-    l4 = pymunk.Segment( body, (xprev, yprev), (x, y), 3)
+    l4 = pymunk.Segment( body, (xprev,yprev),(x,y), 3 )
 
     xprev = x
     yprev = y
+    i += 1
 
-    x = random.randint( lightminx, lightmaxx )
+    x = random.randint( xprev, i * multiple)
     y = random.randint( lightminy, lightmaxy )
-
-    l5 = pymunk.Segment( body, (xprev, yprev), (x, y), 3)
+    l5 = pymunk.Segment( body, (xprev,yprev),(x,y), 3 )
 
     xprev = x
     yprev = y
+    i += 1
 
-    x = random.randint( lightminx, lightmaxx )
+    x = random.randint( xprev, i * multiple)
     y = random.randint( lightminy, lightmaxy )
+    l6 = pymunk.Segment( body, (xprev,yprev),(x,y), 3 )
 
-    l6 = pymunk.Segment( body, (xprev, yprev), (x, y), 3)
+    space.add( l1, l2, l3, l4, l5, l6 )
 
-    xprev = x
-    yprev = y
+    return ( l1, l2, l3, l4, l5, l6 )
 
-    x = random.randint( lightminx, lightmaxx )
-    y = random.randint( lightminy, lightmaxy )
-
-    l7 = pymunk.Segment( body, (xprev, yprev), (x, y), 3)
-
-    xprev = x
-    yprev = y
-
-    #x = random.randint( lightminx, lightmaxx )
-    y = random.randint( lightminy, lightmaxy )
-
-    l8 = pymunk.Segment( body, (xprev, yprev), (120, y), 3)
-
-    space.add( l1, l2, l3, l4, l5, l6, l7, l8 )
-
-    return ( l1, l2, l3, l4, l5, l6, l7, l8  )
 
 def add_boiler(space):
 	body = pymunk.Body()
@@ -358,7 +346,11 @@ def add_turbine(space):
     return (l1, l2, l3, l5, l6)
 
 def add_turbine_highpressure_release_valve(space):
-    pass
+    body = pymunk.Body()
+    body.position = (250, 547)
+    shape = pymunk.Poly.create_box(body, (15, 5), (0, 0), 0)
+    space.add(shape)
+    return shape
 
 # Draw a defined polygon
 def draw_polygon(bg, shape, color = None):
@@ -392,10 +384,10 @@ def draw_lines(screen, lines, color = None):
         p1 = to_pygame(pv1) # 2
         p2 = to_pygame(pv2)
         if color is None:
-            pygame.draw.lines(screen, THECOLORS["black"], False, [p1,p2])
+            pygame.draw.lines(screen, THECOLORS['black'], False, [p1,p2])
         else:
-            color = THECOLORS[ color] 
-            pygame.draw.lines(screen, color, False, [p1,p2])
+            #color = THECOLORS[ color ] 
+            pygame.draw.lines(screen, THECOLORS[color], False, [p1,p2])
 
 # Default collision function for objects
 # Returning true makes the two objects collide normally just like "walls/pipes"
@@ -418,8 +410,6 @@ def run_world():
     clock = pygame.time.Clock()
     running = True
 
-
-
     # Create game space (world) and set gravity to normal
     space = pymunk.Space() #2
     space.gravity = (0.0, -900.0)
@@ -435,6 +425,7 @@ def run_world():
     condenser_valve = add_condenser_outlet_valve(space)
     watermain = add_watermain(space)
     turbine = add_turbine(space)
+    turbinepressurereleasevalve = add_turbine_highpressure_release_valve(air)
     turbair = add_turbine(air)
     electricmain = add_electricmain(space)
     # 3 Burner objects for fire
@@ -462,6 +453,13 @@ def run_world():
     FUELRATE = 2
     ticks_to_next_fire = FUELRATE
 
+    # Steam Creation
+    steams = []
+    steamstorelease = []
+    STEAMCREATE = 3
+    ticks_to_next_steam = STEAMCREATE
+    STEAMRELEASE = 10
+    ticks_to_release_steam = STEAMRELEASE
 
     # Set font settings - On Screen Error Handling
     fontBig = pygame.font.SysFont(None, 40)
@@ -478,6 +476,24 @@ def run_world():
     airshift = True    
     airgravity_tick = 5
     airsensor_tick = 1
+
+
+    # Condenser Volume Tracker
+    condenservolume = PLCGetTag( PLC_CONDENSER_WATER_VOLUME )
+    condenserwater = []
+    CONDENSERTICKS = 90
+    ticks_to_condenser = CONDENSERTICKS
+
+
+    # Generator
+    ticks_to_generator = 1 # place holder.  gets set inside loop
+    generatorsparks = []
+    SPARKCOLORS = ( 'red', 'white', 'yellow', 'green' )
+
+    # Pylon / Power Guage
+    powerguage = []
+    POWERRATE = 5
+    ticks_to_power = POWERRATE
 
 
     #  NEW VARIABLES OUTSIDE OF ANIMATION
@@ -498,12 +514,10 @@ def run_world():
                 running = False
             elif event.type == KEYDOWN and event.key == K_LEFT:
                 for water in waters:
-                    space.remove(water, water.body)
-                    waters.remove(water)
-                    PLCSetTag( PLC_BOILER_WATER_VOLUME, 0)
-                    PLCSetTag( PLC_BOILER_TEMP, 0 )
+                    PLCSetTag( PLC_BOILER_WATER_VOLUME, 5000)
                     PLCSetTag( PLC_WATERPUMP_VALVE, 0)
-                    PLCSetTag( PLC_FUEL_VALVE, 0)
+                    PLCSetTag( PLC_FUEL_VALVE, 1)
+                    PLCSetTag( PLC_TURBINE_PRESSURE, 250)
                 
 
         # Load the background picture for the pipe images
@@ -521,11 +535,6 @@ def run_world():
             space.add_collision_handler( condenser_outlet_valve_collision, ball_collision, begin=valve_closed )
             shift = True
 
-        if PLCGetTag( PLC_TURBINE_PRESSURE_HIGH) == 1:
-            pass
-
-        elif PLCGetTag( PLC_TURBINE_PRESSURE_HIGH) == 0:
-            pass
 
         if( shift == False):
             if (gravity_tick < 1 ):
@@ -608,18 +617,139 @@ def run_world():
                 water_to_remove.append(water)
                 break
 
+        if PLCGetTag(PLC_CONDENSER_WATER_VOLUME) > len(condenserwater) :
+            water_shape = add_water(space)
+            water_shape.body.position.x = 240
+            water_shape.body.position.y = 325
+            condenserwater.append(water_shape)
+        elif (PLCGetTag(PLC_CONDENSER_VALVE) == 1) and (PLCGetTag(PLC_TURBINE_PRESSURE) > 0 ) :
+            ticks_to_condenser -= 1
+            if ticks_to_condenser <= 0:
+                ticks_to_condenser = CONDENSERTICKS
+                water_shape = add_water(space)
+                water_shape.body.position.x = 240
+                water_shape.body.position.y = 325
+                condenserwater.append(water_shape)
 
         for water in waters:
             draw_ball( bg, water, 'blue')
-       
+
+        for water in condenserwater:
+            draw_ball( bg, water, 'purple')
+            if water.body.position.x < condenser_valve.body.position.x:
+                if (water.body.position.y + 10) < condenser_valve.body.position.y:
+                    waters.append(water)
+                    condenserwater.remove(water)
+
         for water in water_to_remove:
         	space.remove(water, water.body)
         	waters.remove(water)
 
-        
-
         # end - Boiler
 
+        # Adding Steam
+        if ( PLCGetTag(PLC_BOILER_TEMP) >= 99 ) and ( PLCGetTag( PLC_BOILER_WATER_VOLUME ) > 0):
+            if (PLCGetTag(PLC_FUEL_RATE) - 2) != 4 :
+                ticks_to_next_steam -= 1
+                if ticks_to_next_steam <= 0:
+                    steam_shape = add_steam(air)
+                    steams.append(steam_shape)
+                    ticks_to_next_steam = PLCGetTag(PLC_FUEL_RATE) + 5 # STEAMCREATE
+
+        if len(steams) < PLCGetTag(PLC_TURBINE_PRESSURE):
+            steam_shape = add_steam(air)
+            steam_shape.body.position = turbinepressurereleasevalve.body.position
+            steam_shape.body.position.x -= 10
+            steam_shape.body.position.y -= 10
+            steams.append(steam_shape)
+
+        if PLCGetTag(PLC_TURBINE_PRESSURE_HIGH):
+            ticks_to_release_steam -= 1
+            if ticks_to_release_steam <= 0:
+                ticks_to_release_steam = STEAMRELEASE
+                steam_shape = add_steam(air)
+                steam_shape.body.position = turbinepressurereleasevalve.body.position
+                steam_shape.body.position.y = turbinepressurereleasevalve.body.position.y + 5
+                steamstorelease.append(steam_shape)
+
+        steamtoremove = []
+        steamsturbine = []
+
+
+        for steam in steams:
+            draw_ball(bg, steam, 'gray')
+            if steam.body.position.y > 465:
+                steamsturbine.append(steam)
+
+        if PLCGetTag( PLC_TURBINE_PRESSURE ) < len(steamsturbine):
+            steamtoremove.append(steamsturbine[0])
+            steamsturbine.remove( steamsturbine[0] )
+
+        for steam in steamtoremove:
+            air.remove(steam, steam.body)
+            steams.remove(steam)
+
+        steamtoremove = []
+
+        for steam in steamstorelease:
+            draw_ball(bg, steam, 'gray')
+            if steam.body.position.y > 600:
+                steamtoremove.append(steam)
+
+        for steam in steamtoremove:
+            air.remove(steam, steam.body)
+            steamstorelease.remove(steam)
+
+
+        # Generator
+        if PLCGetTag(PLC_GENERATOR_STATUS) == 1:
+            if PLCGetTag(PLC_TURBINE_RPMs) > 0:
+                ticks_to_generator -= 1
+                if ticks_to_generator <= 0:
+                    rate = PLCGetTag(PLC_TURBINE_RPMs)
+                    if rate == 1:
+                        ticks_to_generator = 10
+                    elif rate == 2:
+                        ticks_to_generator = 5
+                    elif rate == 3 :
+                        ticks_to_generator = 1
+                    for spark in generatorsparks:
+                        space.remove(spark)
+                        generatorsparks.remove(spark)
+                    spark = add_light(space)
+                    generatorsparks.append(spark)
+
+        if (PLCGetTag(PLC_GENERATOR_STATUS) == 0) or (PLCGetTag(PLC_TURBINE_RPMs) == 0):
+            if len(generatorsparks) > 0:
+                for spark in generatorsparks:
+                    space.remove(spark)
+                    generatorsparks.remove(spark)
+
+        for spark in generatorsparks:
+            draw_lines(bg, spark, random.choice(SPARKCOLORS) )
+
+
+        if (PLCGetTag(PLC_PYLON_STATUS) == 1) and (PLCGetTag(PLC_GENERATOR_OUTPUT) > 0) and (PLCGetTag(PLC_GENERATOR_STATUS) == 1) :
+            ticks_to_power -= 1
+            if ticks_to_power <= 0:
+                ticks_to_power = POWERRATE
+                power_shape = add_energy(space)
+                power_shape.body.position = electricmain.body.position
+                power_shape.body.position.y -= 3
+                powerguage.append(power_shape)
+
+        powerguageremove = []
+
+        for power in powerguage :
+            color = ('gold', 'green', 'red')
+            select = PLCGetTag(PLC_GENERATOR_OUTPUT) - 1
+            draw_ball(bg, power, color[select])
+            if power.body.position.y <= 200:
+                powerguageremove.append(power)
+
+        for power in powerguageremove:
+            space.remove(power)
+            powerguage.remove(power)        
 
         # Drawing Objects on Screen
         draw_lines(bg, boiler)
@@ -628,6 +758,7 @@ def run_world():
         draw_polygon(bg, watermain)
         draw_lines(bg, turbine)
         draw_polygon(bg, electricmain)
+        draw_polygon(bg, turbinepressurereleasevalve, 'black')
         
 
 
@@ -636,7 +767,8 @@ def run_world():
 
         # Used to display number of water 
         #inside Boiler
-        text = "" #"Log: " + str( log )
+        stuff = str(len(steams))
+        text = stuff #"Log: " + str( log )
         textsurface = myfont.render( text, False, (0,0,0))
 
 

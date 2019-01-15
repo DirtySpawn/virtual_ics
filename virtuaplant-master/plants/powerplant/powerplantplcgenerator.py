@@ -212,6 +212,7 @@ class HMIWindow(Gtk.Window):
                     self.generator_plc_output_value.set_markup("<span weight='bold' foreground='green'>3,000</span>")
                 if regs[PLC_TURBINE_RPMs - 1] == 3:
                     self.generator_plc_output_value.set_markup("<span weight='bold' foreground='crimson'>5,000+ DANGER</span>")
+                self.modbusClient.write_register( PLC_GENERATOR_OUTPUT, regs[PLC_TURBINE_RPMs - 1 ] )
 
         except ConnectionException:
             if not self.modbusClient.connect():

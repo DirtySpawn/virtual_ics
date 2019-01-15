@@ -320,6 +320,13 @@ class HMIWindow(Gtk.Window):
 
                     self.setTemperature(temp)
 
+            if regs[PLC_FUEL_VALVE - 1] == 0:
+                if regs[PLC_BOILER_TEMP - 1] > 0:
+                    temp = regs[PLC_BOILER_TEMP - 1] - 1
+                    if temp <= 80:
+                        temp = 80
+                    self.setTemperature(temp)
+
             #TICKS_TO_STEAM -= TICKS_TO_STEAM
             self.boiler_plc_water_temp_value.set_markup("<span weight='bold' foreground='black'>" + str( regs[PLC_BOILER_TEMP - 1])  + "</span>")
             

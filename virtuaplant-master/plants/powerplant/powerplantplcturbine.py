@@ -87,9 +87,11 @@ FUEL_RATE = [ 'MAX', 'HIGH', 'MED', 'LOW' ]
 
 CONDENSERATE = 6 # seconds to condense 
 
-#HIGHPRESSUREMIN = 
-#HIGHPRESSURELIMIT = 
 
+PRESSUREMIN = 300
+PRESSUREMAX = 400
+
+PRESSURERELEASE = False
 # *************************************************
 
 class HMIWindow(Gtk.Window):
@@ -101,7 +103,7 @@ class HMIWindow(Gtk.Window):
     # Default values for the HMI labels
     def resetLabels(self):
         self.turbine_plc_online_value.set_markup("<span weight='bold' foreground='red'>OFF</span>")
-        
+        self.turbine_plc_pressure_valve_value.set_markup("<span weight='bold' foreground='black'>N/A</span>")
         
     def __init__(self):
         # Window title
@@ -141,16 +143,23 @@ class HMIWindow(Gtk.Window):
         
         turbine_plc_pressure_label = Gtk.Label("Pressure: ")
         turbine_plc_pressure_value = Gtk.Label()
-
+        
         grid.attach(turbine_plc_pressure_label, 4, elementIndex, 1, 1)
         grid.attach(turbine_plc_pressure_value, 5, elementIndex, 1, 1)
         elementIndex += 1
+
+        turbine_plc_pressure_valve_label = Gtk.Label("Pressure Valve: ")
+        turbine_plc_pressure_valve_value = Gtk.Label()
+
+        grid.attach(turbine_plc_pressure_valve_label, 4, elementIndex, 1, 1)
+        grid.attach(turbine_plc_pressure_valve_value, 5, elementIndex, 1, 1)
+        elementIndex += 1 
 
         # Attach Value Labels
         self.turbine_plc_online_value = turbine_plc_online_value
         self.turbine_plc_rpm_value = turbine_plc_rpm_value
         self.turbine_plc_pressure_value = turbine_plc_pressure_value
-
+        self.turbine_plc_pressure_valve_value = turbine_plc_pressure_valve_value
 
         self.CONDENSERATE = CONDENSERATE
         self.ticks_to_condense = self.CONDENSERATE
@@ -212,8 +221,23 @@ class HMIWindow(Gtk.Window):
                         change = currentpressure + WATERTOSTEAMRATE[ rate ]
                         self.modbusClient.write_register( PLC_TURBINE_PRESSURE, change)
 
+            if regs[ PLC_TURBINE_PRESSURE - 1 ] > PRESSUREMAX:
+                #PRESSURERELEASE = True
+                self.modbusClient.write_register( PLC_TURBINE_PRESSURE_HIGH, 1 )
+                
 
-
+            if regs[ PLC_TURBINE_PRESSURE_HIGH - 1 ] == 1:
+                self.turbine_plc_pressure_valve_value.set_markup("<span weight='bold' foreground='green'>OPEN</span>")
+                if regs[ PLC_TURBINE_PRESSURE - 1 ] < PRESSUREMIN:
+                    #PRESSURERELEASE = False
+                    self.modbusClient.write_register( PLC_TURBINE_PRESSURE_HIGH, 0 )
+                else:
+                    currentpressure = regs[PLC_TURBINE_PRESSURE - 1]
+                    change = currentpressure - 15 # WATERTOSTEAMRATE[ rate ]
+                    self.modbusClient.write_register( PLC_TURBINE_PRESSURE, change)
+            else:
+                self.turbine_plc_pressure_valve_value.set_markup("<span weight='bold' foreground='red'>CLOSED</span>")
+                             
 
         except ConnectionException:
             if not self.modbusClient.connect():
@@ -222,8 +246,6 @@ class HMIWindow(Gtk.Window):
             raise
         finally:
             return True
-
-
 
 def app_main():
     win = HMIWindow()
