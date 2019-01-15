@@ -86,7 +86,7 @@ GPMRATE = [ 1, 0.75, 0.50, 0.25 ]  # percentage of pump rate
 
 TEMPRATE = [ 25, 10, 5, 1 ] # how fast temp goes up
 
-WATERTOSTEAM = [10, 4, 2, 0]
+WATERTOSTEAM = [15, 5, 1, 0]
 
 WATERFROMVALVETEMP = 80 # Degrees C
 
@@ -318,6 +318,13 @@ class HMIWindow(Gtk.Window):
                         VOLUME -= WATERTOSTEAM[rate]
                         self.setWaterAmount(VOLUME)
 
+                    self.setTemperature(temp)
+
+            if regs[PLC_FUEL_VALVE - 1] == 0:
+                if regs[PLC_BOILER_TEMP - 1] > 0:
+                    temp = regs[PLC_BOILER_TEMP - 1] - 1
+                    if temp <= 80:
+                        temp = 80
                     self.setTemperature(temp)
 
             #TICKS_TO_STEAM -= TICKS_TO_STEAM

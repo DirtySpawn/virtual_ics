@@ -64,7 +64,7 @@ PLC_CONDENSER_WATER_VOLUME = 0x0b
 
 # TURBINE
 PLC_TURBINE_PRESSURE_HIGH = 0x0c
-PLC_TURBINE_PRESSURE_LOW = 0x0d
+PLC_TURBINE_PRESSURE = 0x0d
 PLC_TURBINE_RPMs = 0x11
 
 # GENERATOR
@@ -76,6 +76,9 @@ PLC_PYLON_STATUS = 0x10
 PLC_PYLON_POWER = 0x12
 
 # *************************************************
+
+CONDENSATION = 30
+ticks_to_condensing = CONDENSATION
 
 
 class HMIWindow(Gtk.Window):
@@ -146,8 +149,19 @@ class HMIWindow(Gtk.Window):
         self.condenser_plc_online_value = condenser_plc_online_value
         self.condenser_plc_valve_value = condenser_plc_valve_value
         self.condenser_plc_water_volume_value = condenser_plc_water_volume_value
+        self.condenservolume = 0.0
+        self.pressurechange = 0.0
+        self.ticks_to_condensing = 2
+        self.flowrate = 10.0
+        self.rateboiling = 1
+        self.ratenotboiling = 2
+        self.rate = 1
 
-        self.modbusClient.write_register(PLC_CONDENSER_VALVE, 1)
+        try:
+            self.modbusClient.write_register(PLC_CONDENSER_VALVE, 1)
+            self.modbusClient.write_register(PLC_CONDENSER_WATER_VOLUME, 0.0)
+        except:
+            pass
         
         # Set default label values
         self.resetLabels()
@@ -160,6 +174,11 @@ class HMIWindow(Gtk.Window):
         except:
             pass
 
+    def setCondenserVolume(self, widget, data=None):
+        try:
+            self.modbusClient.write_register(PLC_CONDENSER_WATER_VOLUME, data)
+        except:
+            pass
         
     def update_status(self):
 
@@ -187,7 +206,30 @@ class HMIWindow(Gtk.Window):
             elif regs[PLC_CONDENSER_VALVE - 1] == 0:
                 self.condenser_plc_valve_value.set_markup("<span weight='bold' foreground='red'>CLOSED</span>")
 
-            
+
+            if regs[PLC_CONDENSER_VALVE - 1] == 1:
+                vol = regs[PLC_BOILER_WATER_VOLUME - 1]
+                if self.condenservolume > 10.0:
+                    self.condenservolume -= self.flowrate
+                    self.modbusClient.write_register(PLC_CONDENSER_WATER_VOLUME, self.condenservolume)
+                    self.modbusClient.write_register(PLC_BOILER_WATER_VOLUME, vol + self.flowrate)
+                else:
+                    self.modbusClient.write_register(PLC_BOILER_WATER_VOLUME, vol + self.condenservolume)
+                    self.condenservolume = 0.0
+                    self.modbusClient.write_register(PLC_CONDENSER_WATER_VOLUME, 0) 
+
+            if regs[ PLC_TURBINE_PRESSURE - 1 ] > 0:
+                self.ticks_to_condensing -= 1
+                if self.ticks_to_condensing <= 0:
+                    if (regs[PLC_BOILER_TEMP - 1] < 100) or (regs[PLC_FUEL_RATE - 1] - 3) == 3 :
+                        self.rate = self.ratenotboiling
+                    else:
+                        self.rate = self.rateboiling
+                    self.ticks_to_condensing = 2
+                    self.condenservolume += 1 * self.rate
+                    self.modbusClient.write_register(PLC_CONDENSER_WATER_VOLUME, self.condenservolume )
+                    self.modbusClient.write_register( PLC_TURBINE_PRESSURE, regs[PLC_TURBINE_PRESSURE - 1] - (1 * self.rate) )
+
 
 
         except ConnectionException:
@@ -197,12 +239,6 @@ class HMIWindow(Gtk.Window):
             raise
         finally:
             return True
-
-    def setCondenserValve(self, widget, data=None):
-        try:
-            self.modbusClient.write_register(PLC_CONDENSER_VALVE, data)
-        except:
-            pass
 
 
 def app_main():

@@ -186,13 +186,12 @@ class HMIWindow(Gtk.Window):
         # Change to match
 # exmaple follows
 
-            if regs[ PLC_GENERATOR_STATUS - 1 ] == 0:
-                if regs[PLC_PYLON_STATUS - 1] == 0:
-                    self.pylon_plc_status_value.set_markup("<span weight='bold' foreground='red'>OFF</span>")
-                    self.pylon_plc_power_value.set_markup("<span weight='bold' foreground='red'>No Power</span>")
-            if regs[ PLC_GENERATOR_STATUS - 1 ] == 1:
-                if regs[ PLC_PYLON_STATUS - 1 ] == 1:
-                    self.pylon_plc_status_value.set_markup("<span weight='bold' foreground='green'>ON</span>")
+            if regs[PLC_PYLON_STATUS - 1] == 0:
+                self.pylon_plc_status_value.set_markup("<span weight='bold' foreground='red'>OFF</span>")
+                self.pylon_plc_power_value.set_markup("<span weight='bold' foreground='red'>No Power</span>")
+            if regs[ PLC_PYLON_STATUS - 1 ] == 1:
+                self.pylon_plc_status_value.set_markup("<span weight='bold' foreground='green'>ON</span>")
+                if regs[ PLC_GENERATOR_STATUS - 1 ] == 1:
                     if regs[PLC_TURBINE_RPMs - 1] == 0:
                         self.pylon_plc_power_value.set_markup("<span weight='bold' foreground='red'>No Output</span>")
                     if regs[PLC_TURBINE_RPMs - 1] == 1:
@@ -201,19 +200,10 @@ class HMIWindow(Gtk.Window):
                         self.pylon_plc_power_value.set_markup("<span weight='bold' foreground='green'>Normal Power</span>")
                     if regs[PLC_TURBINE_RPMs - 1] == 3:
                         self.pylon_plc_power_value.set_markup("<span weight='bold' foreground='crimson'>DANGER</span>")
+                else:
+                    self.pylon_plc_power_value.set_markup("<span weight='bold' foreground='red'>No Power</span>")
 
-
-            # If the feed pump "0x01" is set to 1, then the pump is running
-            '''
-            if regs[0] == 1:
-                self.fuel_plc_operational_value.set_markup("<span weight='bold' foreground='green'>ON</span>")
-            else:
-                self.fuel_plc_operational_value.set_markup("<span weight='bold' foreground='red'>OFF</span>")
-            if regs[12] == 0:
-                self.pylon_plc_operational_value .set_markup("<span weight='bold' foreground='red'>OFF</span>")
-            elif regs[12] == 1:
-                self.pylon_plc_operational_value.set_markup("<span weight='bold' foreground='green'>ON</span>")
-            '''
+       
 
         except ConnectionException:
             if not self.modbusClient.connect():
